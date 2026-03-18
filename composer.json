@@ -1,0 +1,21 @@
+{
+    "name": "franpass87/fp-discount-gift",
+    "description": "Plugin FP per codici sconto WooCommerce con bridge voucher FP-Experiences.",
+    "type": "wordpress-plugin",
+    "license": "proprietary",
+    "require": {
+        "php": ">=8.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "FP\\DiscountGift\\": "src/"
+        }
+    },
+    "scripts": {
+        "test:smoke": "php tests/DiscountEngineSmokeTest.php"
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "sort-packages": true
+    }
+}

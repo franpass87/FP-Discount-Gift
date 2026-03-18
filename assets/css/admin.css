@@ -1,0 +1,42 @@
+.fpdgift-wrap {
+    max-width: 1200px;
+}
+
+.fpdgift-header {
+    background: linear-gradient(135deg, #4f46e5, #7c3aed);
+    color: #fff;
+    padding: 20px 24px;
+    border-radius: 12px;
+    margin: 16px 0;
+}
+
+.fpdgift-header h1 {
+    color: #fff;
+    margin: 0 0 4px;
+}
+
+.fpdgift-header p {
+    margin: 0;
+    opacity: 0.9;
+}
+
+.fpdgift-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 20px;
+    margin: 16px 0;
+}
+
+.fpdgift-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 12px;
+}
+
+.fpdgift-grid label,
+.fpdgift-checkbox {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
