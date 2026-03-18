@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # FP Discount Gift
 
 Plugin WordPress per la gestione di codici sconto FP con integrazione WooCommerce in modalita shadow coupon e sincronizzazione eventi voucher da FP-Experiences.
@@ -68,3 +69,6 @@ FP-Discount-Gift/
 - Sito: [francescopasseri.com](https://francescopasseri.com)
 - Email: [info@francescopasseri.com](mailto:info@francescopasseri.com)
 - GitHub: [github.com/franpass87](https://github.com/franpass87)
+=======
+# FP-Discount-Gift
+>>>>>>> origin/main
