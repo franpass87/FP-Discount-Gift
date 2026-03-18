@@ -1,3 +1,12 @@
+## [1.0.1] - 2026-03-17
+### Added
+- Documentazione estesa in `docs/` con architettura, eventi tracking, setup Brevo e checklist test/rilascio.
+- Nuovi eventi tracking utili: `discount_code_attempted`, `discount_code_rejected`, `discount_removed`, `gift_voucher_purchased`, `gift_voucher_redeemed`.
+
+### Changed
+- Pulizia eventi per evitare doppioni verso tracking layer/Brevo: mantenuto `fp_discountgift_voucher_synced` come evento interno e inviati solo eventi voucher specifici al bus `fp_tracking_event`.
+- Menu admin allineato alla capability plugin `manage_fp_discountgift`.
+
 ## [1.0.0] - 2026-03-17
 ### Added
 - Scaffold iniziale del plugin FP Discount Gift con bootstrap, autoload PSR-4 e uninstall.

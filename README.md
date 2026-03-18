@@ -1,9 +1,8 @@
-<<<<<<< HEAD
 # FP Discount Gift
 
 Plugin WordPress per la gestione di codici sconto FP con integrazione WooCommerce in modalita shadow coupon e sincronizzazione eventi voucher da FP-Experiences.
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue)
+![Version](https://img.shields.io/badge/version-1.0.1-blue)
 
 ## Funzionalita MVP (Fase 1)
 
@@ -41,6 +40,13 @@ Per abilitarlo:
 
 I payload eventi includono `email` e `user_data` (quando disponibili), cosi Brevo riceve identificatori contatto validi.
 
+## Documentazione completa
+
+- [Architettura plugin](docs/ARCHITETTURA.md)
+- [Guida eventi tracking](docs/EVENTI-TRACKING.md)
+- [Setup Brevo via FP Tracking Layer](docs/BREVO-INTEGRAZIONE.md)
+- [Guida test, regressioni e rilascio](docs/TEST-REGRESSIONI-RILASCIO.md)
+
 ## Struttura
 
 ```
@@ -69,6 +75,3 @@ FP-Discount-Gift/
 - Sito: [francescopasseri.com](https://francescopasseri.com)
 - Email: [info@francescopasseri.com](mailto:info@francescopasseri.com)
 - GitHub: [github.com/franpass87](https://github.com/franpass87)
-=======
-# FP-Discount-Gift
->>>>>>> origin/main

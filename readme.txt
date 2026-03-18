@@ -2,7 +2,7 @@
 Contributors: franpass87
 Requires at least: 6.0
 Requires PHP: 8.0
-Stable tag: 1.0.0
+Stable tag: 1.0.1
 License: Proprietary
 Tags: woocommerce, coupon, discount, gift card, fp
 
@@ -14,9 +14,11 @@ FP Discount Gift introduce un motore regole sconto FP che si integra con WooComm
 
 Caratteristiche principali:
 - regole sconto custom (fisso/percentuale, limiti, validita, restrizioni),
-- applicazione checkout compatibile WooCommerce,
+- applicazione checkout compatibile WooCommerce tramite shadow coupon,
+- CRUD completo regole (crea, modifica, elimina, bulk action),
 - audit eventi voucher da FP-Experiences,
-- tracking evento `discount_applied` via `fp_tracking_event`.
+- tracking eventi utili via `fp_tracking_event` (attempted, rejected, applied, removed, purchased, redeemed),
+- integrazione Brevo server-side tramite FP-Marketing-Tracking-Layer.
 
 == Installation ==
 
@@ -26,6 +28,11 @@ Caratteristiche principali:
 4. Configura regole da menu `FP Discount Gift`.
 
 == Changelog ==
+
+= 1.0.1 =
+* Documentazione completa aggiunta (architettura, tracking, Brevo, test e rilascio).
+* Eventi tracking estesi e deduplicati per flussi analytics/Brevo.
+* Aggiornamento capability menu admin su `manage_fp_discountgift`.
 
 = 1.0.0 =
 * Prima release MVP con regole sconto, bridge WooCommerce e sync eventi voucher Experiences.
