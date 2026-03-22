@@ -12,10 +12,13 @@ return array(
     'FP\\DiscountGift\\Core\\Plugin' => $baseDir . '/src/Core/Plugin.php',
     'FP\\DiscountGift\\Core\\Roles' => $baseDir . '/src/Core/Roles.php',
     'FP\\DiscountGift\\Domain\\DiscountRule' => $baseDir . '/src/Domain/DiscountRule.php',
+    'FP\\DiscountGift\\Email\\GiftCardEmailSender' => $baseDir . '/src/Email/GiftCardEmailSender.php',
     'FP\\DiscountGift\\Infrastructure\\DB\\DiscountRuleRepository' => $baseDir . '/src/Infrastructure/DB/DiscountRuleRepository.php',
     'FP\\DiscountGift\\Infrastructure\\DB\\Migrations' => $baseDir . '/src/Infrastructure/DB/Migrations.php',
+    'FP\\DiscountGift\\Integrations\\Cron\\GiftCardScheduler' => $baseDir . '/src/Integrations/Cron/GiftCardScheduler.php',
     'FP\\DiscountGift\\Integrations\\Experiences\\ExperienceEventBridge' => $baseDir . '/src/Integrations/Experiences/ExperienceEventBridge.php',
     'FP\\DiscountGift\\Integrations\\Tracking\\TrackingBridge' => $baseDir . '/src/Integrations/Tracking/TrackingBridge.php',
     'FP\\DiscountGift\\Integrations\\WooCommerce\\CheckoutBridge' => $baseDir . '/src/Integrations/WooCommerce/CheckoutBridge.php',
+    'FP\\DiscountGift\\Integrations\\WooCommerce\\GiftCardProductIntegration' => $baseDir . '/src/Integrations/WooCommerce/GiftCardProductIntegration.php',
     'FP\\DiscountGift\\Integrations\\WooCommerce\\ShadowCouponManager' => $baseDir . '/src/Integrations/WooCommerce/ShadowCouponManager.php',
 );

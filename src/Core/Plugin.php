@@ -12,6 +12,7 @@ use FP\DiscountGift\Integrations\Cron\GiftCardScheduler;
 use FP\DiscountGift\Integrations\Experiences\ExperienceEventBridge;
 use FP\DiscountGift\Integrations\Tracking\TrackingBridge;
 use FP\DiscountGift\Integrations\WooCommerce\CheckoutBridge;
+use FP\DiscountGift\Integrations\WooCommerce\GiftCardProductIntegration;
 use FP\DiscountGift\Integrations\WooCommerce\ShadowCouponManager;
 
 use function add_action;
@@ -37,6 +38,8 @@ final class Plugin
 
     private CheckoutBridge $checkout_bridge;
 
+    private GiftCardProductIntegration $gift_card_product_integration;
+
     private ExperienceEventBridge $experience_event_bridge;
 
     private TrackingBridge $tracking_bridge;
@@ -60,6 +63,7 @@ final class Plugin
         $this->engine = new DiscountEngine($this->repository);
         $this->shadow_coupon_manager = new ShadowCouponManager();
         $this->checkout_bridge = new CheckoutBridge($this->engine, $this->shadow_coupon_manager);
+        $this->gift_card_product_integration = new GiftCardProductIntegration($this->repository);
         $this->experience_event_bridge = new ExperienceEventBridge();
         $this->tracking_bridge = new TrackingBridge();
         $this->settings_page = new SettingsPage($this->repository, $this->engine);
@@ -78,6 +82,7 @@ final class Plugin
         $this->migrations->run();
         $this->settings_page->register();
         $this->checkout_bridge->register();
+        $this->gift_card_product_integration->register();
         $this->experience_event_bridge->register();
         $this->tracking_bridge->register();
         $this->gift_card_scheduler->register();

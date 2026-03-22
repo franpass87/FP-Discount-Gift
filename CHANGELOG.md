@@ -1,3 +1,10 @@
+## [1.2.0] - 2026-03-22
+### Added
+- Prodotto gift card WooCommerce: marca prodotti (anche varianti) come gift card tramite checkbox in scheda prodotto.
+- All'acquisto di un prodotto gift card, emissione automatica di gift card e invio email al destinatario.
+- Campi checkout (email e nome destinatario) quando il carrello contiene prodotti gift card.
+- Integrazione `GiftCardProductIntegration`: meta prodotto, campi checkout, handler ordine completato.
+
 ## [1.1.0] - 2026-03-22
 ### Added
 - Invio gift card via email: wp_mail e Brevo Transactional (se FP-Marketing-Tracking-Layer configurato).
