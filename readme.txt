@@ -2,7 +2,7 @@
 Contributors: franpass87
 Requires at least: 6.0
 Requires PHP: 8.0
-Stable tag: 1.2.2
+Stable tag: 1.2.4
 License: Proprietary
 Tags: woocommerce, coupon, discount, gift card, fp
 
@@ -28,6 +28,9 @@ Caratteristiche principali:
 4. Configura regole da menu `FP Discount Gift`.
 
 == Changelog ==
+
+= 1.2.4 =
+* Notice centralizzazione Brevo con link a FP Tracking in Impostazioni.
 
 = 1.2.3 =
 * Brevo centralizzato: API key e stato letti da FP-Tracking (fp_tracking_get_brevo_settings).

@@ -1,3 +1,7 @@
+## [1.2.4] - 2026-03-23
+### Changed
+- Notice centralizzazione Brevo con link a FP Tracking in Impostazioni (quando FP-Tracking attivo).
+
 ## [1.2.3] - 2026-03-23
 ### Changed
 - Brevo centralizzato: API key e stato abilitato ora letti da `fp_tracking_get_brevo_settings()` (FP-Tracking) con fallback a fp_tracking_settings.

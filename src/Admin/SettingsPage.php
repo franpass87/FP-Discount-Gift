@@ -280,6 +280,18 @@ final class SettingsPage
                                 <span class="fpdgift-toggle-slider"></span>
                             </label>
                         </div>
+                        <?php
+                        $brevo_central = function_exists('fp_tracking_get_brevo_settings') ? fp_tracking_get_brevo_settings() : null;
+                        if ($brevo_central) :
+                            ?>
+                        <div class="fpdgift-alert fpdgift-alert-info" style="margin-bottom: 16px;">
+                            <span class="dashicons dashicons-info"></span>
+                            <?php
+                            echo esc_html__('API key e configurazione Brevo sono gestiti in FP Tracking.', 'fp-discount-gift');
+                            echo ' <a href="' . esc_url(admin_url('admin.php?page=fp-tracking')) . '">' . esc_html__('Configura in FP Tracking', 'fp-discount-gift') . '</a>';
+                            ?>
+                        </div>
+                        <?php endif; ?>
                         <div class="fpdgift-toggle-row">
                             <div class="fpdgift-toggle-info">
                                 <strong><?php esc_html_e('Usa Brevo per email gift card', 'fp-discount-gift'); ?></strong>
