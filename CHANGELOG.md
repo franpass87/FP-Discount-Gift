@@ -1,3 +1,14 @@
+## [1.0.2] - 2026-03-22
+### Changed
+- Interfaccia admin rinnovata con design system FP: card con header, toggle switch, badge, alert, tabelle thead viola.
+- Status bar con pill per stato shadow coupon, auto-applicazione e conteggio regole.
+- Notice di successo/errore per salvataggio, eliminazione, gift card emesse, azioni bulk.
+- Form regole e gift card con griglia campi `fpdgift-fields-grid` e bottoni design system.
+- Correzioni nullsafe per form nuova regola (`$edit_rule?->`).
+
+### Added
+- Sezione "Suggerimenti per sviluppi futuri" nel README (esporta CSV, duplica regola, statistiche, invio email gift card, ecc.).
+
 ## [1.0.1] - 2026-03-17
 ### Added
 - Documentazione estesa in `docs/` con architettura, eventi tracking, setup Brevo e checklist test/rilascio.

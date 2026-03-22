@@ -2,7 +2,7 @@
 
 Plugin WordPress per la gestione di codici sconto FP con integrazione WooCommerce in modalita shadow coupon e sincronizzazione eventi voucher da FP-Experiences.
 
-![Version](https://img.shields.io/badge/version-1.0.1-blue)
+![Version](https://img.shields.io/badge/version-1.0.2-blue)
 
 ## Funzionalita MVP (Fase 1)
 
@@ -11,6 +11,7 @@ Plugin WordPress per la gestione di codici sconto FP con integrazione WooCommerc
 - Salvataggio usage regole su ordine.
 - Pagina admin dedicata per impostazioni e CRUD regole (crea, modifica, elimina, bulk enable/disable/delete).
 - Bridge eventi voucher da FP-Experiences (`fp_exp_gift_purchased`, `fp_exp_gift_voucher_redeemed`).
+- Gift card native con saldo residuo e movimenti (`issued`, `redeemed`).
 
 ## Integrazione WooCommerce
 
@@ -28,6 +29,7 @@ Plugin WordPress per la gestione di codici sconto FP con integrazione WooCommerc
 - `fp_tracking_event` con evento `discount_applied` (se FP-Marketing-Tracking-Layer e attivo)
 - `fp_tracking_event` con eventi `discount_code_attempted`, `discount_code_rejected`, `discount_removed`
 - `fp_tracking_event` con eventi `gift_voucher_purchased` e `gift_voucher_redeemed`
+- `fp_tracking_event` con eventi `gift_card_issued`, `gift_card_applied`, `gift_card_redeemed`, `gift_card_removed`
 
 ## Integrazione Brevo (via FP Tracking Layer)
 
@@ -68,6 +70,19 @@ FP-Discount-Gift/
 - WordPress 6.0+
 - PHP 8.0+
 - WooCommerce (solo per funzioni checkout/sconto)
+
+## Suggerimenti per sviluppi futuri
+
+- **Esporta/importa regole CSV**: backup e migrazione regole tra ambienti
+- **Duplica regola**: crea una copia con codice modificato per varianti rapide
+- **Filtro e ricerca regole**: campo ricerca per codice/titolo nelle tabelle
+- **Statistiche uso**: conteggio utilizzi per regola con grafico
+- **Invio gift card via email**: notifica al destinatario con codice e istruzioni
+- **Template messaggio gift card**: personalizzazione email (Brevo/SMTP)
+- **Preview codice sconto**: anteprima totale scontato su carrello di test
+- **Regole per categoria prodotto**: restrizioni per taxonomy oltre a product IDs
+- **Condizioni data/ora**: sconti attivi solo in fasce orarie (es. happy hour)
+- **Cuponi usa-e-getta**: codice monouso con generazione batch
 
 ## Autore
 
