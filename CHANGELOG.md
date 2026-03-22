@@ -1,3 +1,19 @@
+## [1.1.0] - 2026-03-22
+### Added
+- Invio gift card via email: wp_mail e Brevo Transactional (se FP-Marketing-Tracking-Layer configurato).
+- Duplica regola sconto con generazione codice univoco.
+- Statistiche uso regole: colonne Usi, Ultimo uso in tabella.
+- Esporta regole in CSV e importa da CSV.
+- Filtro e ricerca regole per codice o titolo.
+- Preview sconto in modifica regola (AJAX con sottototale di test).
+- Cuponi usa-e-getta batch: genera N regole con usage_limit=1.
+
+### Changed
+- Impostazioni: toggle invio email gift card e uso Brevo.
+- Migrazioni: default gift_card_send_email, gift_card_email_via_brevo.
+- DiscountEngine: metodo calculateDiscountForSubtotal() per preview.
+- Admin: form ricerca, link Esporta CSV, form Importa CSV, box batch single-use, box preview.
+
 ## [1.0.2] - 2026-03-22
 ### Changed
 - Interfaccia admin rinnovata con design system FP: card con header, toggle switch, badge, alert, tabelle thead viola.

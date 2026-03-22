@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace FP\DiscountGift\Admin;
 
+use FP\DiscountGift\Application\DiscountEngine;
 use FP\DiscountGift\Core\Roles;
+use FP\DiscountGift\Domain\DiscountRule;
+use FP\DiscountGift\Email\GiftCardEmailSender;
 use FP\DiscountGift\Infrastructure\DB\DiscountRuleRepository;
 
 use function absint;
@@ -38,7 +41,11 @@ use function wp_nonce_field;
 use function wp_nonce_url;
 use function wp_redirect;
 use function wp_unslash;
+use function wp_create_nonce;
+use function wp_localize_script;
+use function wp_enqueue_script;
 use function wp_verify_nonce;
+use function date_i18n;
 
 /**
  * Pagina admin per impostazioni e regole sconto.
@@ -48,8 +55,10 @@ final class SettingsPage
     private const MENU_SLUG = 'fp-discount-gift';
     private const SETTINGS_OPTION = 'fp_discountgift_settings';
 
-    public function __construct(private readonly DiscountRuleRepository $repository)
-    {
+    public function __construct(
+        private readonly DiscountRuleRepository $repository,
+        private readonly DiscountEngine $engine
+    ) {
     }
 
     /**
@@ -63,7 +72,12 @@ final class SettingsPage
         add_action('admin_post_fp_discountgift_save_rule', [$this, 'handleSaveRule']);
         add_action('admin_post_fp_discountgift_create_gift_card', [$this, 'handleCreateGiftCard']);
         add_action('admin_post_fp_discountgift_delete_rule', [$this, 'handleDeleteRule']);
+        add_action('admin_post_fp_discountgift_duplicate_rule', [$this, 'handleDuplicateRule']);
         add_action('admin_post_fp_discountgift_bulk_rules', [$this, 'handleBulkRules']);
+        add_action('admin_post_fp_discountgift_export_csv', [$this, 'handleExportCsv']);
+        add_action('admin_post_fp_discountgift_import_csv', [$this, 'handleImportCsv']);
+        add_action('admin_post_fp_discountgift_batch_single_use', [$this, 'handleBatchSingleUse']);
+        add_action('wp_ajax_fp_discountgift_preview', [$this, 'ajaxPreviewDiscount']);
     }
 
     /**
@@ -99,6 +113,24 @@ final class SettingsPage
             [],
             FP_DISCOUNTGIFT_VERSION
         );
+
+        wp_enqueue_script(
+            'fp-discount-gift-admin',
+            FP_DISCOUNTGIFT_URL . 'assets/js/admin.js',
+            [],
+            FP_DISCOUNTGIFT_VERSION,
+            true
+        );
+        wp_localize_script('fp-discount-gift-admin', 'fpDiscountGiftAdmin', [
+            'ajaxUrl' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('fp_discountgift_admin'),
+            'i18n' => [
+                'preview' => __('Anteprima', 'fp-discount-gift'),
+                'sconto' => __('Sconto', 'fp-discount-gift'),
+                'totale' => __('Totale', 'fp-discount-gift'),
+                'importoCarrello' => __('Importo carrello di test', 'fp-discount-gift'),
+            ],
+        ]);
     }
 
     /**
@@ -113,6 +145,15 @@ final class SettingsPage
         $settings = get_option(self::SETTINGS_OPTION, []);
         $settings = is_array($settings) ? $settings : [];
         $rules = $this->repository->getAllRules();
+        $search = isset($_GET['search_rules']) ? sanitize_text_field(wp_unslash((string) $_GET['search_rules'])) : '';
+        if ($search !== '') {
+            $search_lower = strtolower($search);
+            $rules = array_values(array_filter($rules, static function ($r) use ($search_lower): bool {
+                return str_contains(strtolower($r->code), $search_lower)
+                    || str_contains(strtolower($r->title), $search_lower);
+            }));
+        }
+        $usage_stats = $this->repository->getUsageStatsForRules();
         $gift_cards = $this->repository->getGiftCards();
         $edit_id = isset($_GET['edit_rule']) ? absint($_GET['edit_rule']) : 0;
         $edit_rule = $edit_id > 0 ? $this->repository->findById($edit_id) : null;
@@ -136,13 +177,28 @@ final class SettingsPage
             elseif (isset($_GET['saved_rule']) && '1' === $_GET['saved_rule']) :
                 echo '<div class="fpdgift-alert fpdgift-alert-success"><span class="dashicons dashicons-yes-alt"></span> ' . esc_html__('Regola salvata.', 'fp-discount-gift') . '</div>';
             elseif (isset($_GET['gift_card_created']) && '1' === $_GET['gift_card_created']) :
-                echo '<div class="fpdgift-alert fpdgift-alert-success"><span class="dashicons dashicons-yes-alt"></span> ' . esc_html__('Gift card emessa correttamente.', 'fp-discount-gift') . '</div>';
+                $email_msg = isset($_GET['email_sent']) && '1' === $_GET['email_sent']
+                    ? ' ' . esc_html__('Email inviata al destinatario.', 'fp-discount-gift')
+                    : (isset($_GET['email_sent']) && '0' === $_GET['email_sent'] ? ' (' . esc_html__('Email non inviata', 'fp-discount-gift') . ')' : '');
+                echo '<div class="fpdgift-alert fpdgift-alert-success"><span class="dashicons dashicons-yes-alt"></span> ' . esc_html__('Gift card emessa correttamente.', 'fp-discount-gift') . $email_msg . '</div>';
             elseif (isset($_GET['deleted_rule']) && '1' === $_GET['deleted_rule']) :
                 echo '<div class="fpdgift-alert fpdgift-alert-success"><span class="dashicons dashicons-yes-alt"></span> ' . esc_html__('Regola eliminata.', 'fp-discount-gift') . '</div>';
             elseif (isset($_GET['bulk']) && '1' === $_GET['bulk']) :
                 echo '<div class="fpdgift-alert fpdgift-alert-success"><span class="dashicons dashicons-yes-alt"></span> ' . esc_html__('Azione bulk eseguita.', 'fp-discount-gift') . '</div>';
             elseif (isset($_GET['bulk']) && 'empty' === $_GET['bulk']) :
                 echo '<div class="fpdgift-alert fpdgift-alert-warning"><span class="dashicons dashicons-warning"></span> ' . esc_html__('Seleziona almeno una regola per l\'azione bulk.', 'fp-discount-gift') . '</div>';
+            elseif (isset($_GET['duplicated']) && '1' === $_GET['duplicated']) :
+                echo '<div class="fpdgift-alert fpdgift-alert-success"><span class="dashicons dashicons-yes-alt"></span> ' . esc_html__('Regola duplicata. Modifica il codice e salva.', 'fp-discount-gift') . '</div>';
+            elseif (isset($_GET['duplicate_failed']) && '1' === $_GET['duplicate_failed']) :
+                echo '<div class="fpdgift-alert fpdgift-alert-warning"><span class="dashicons dashicons-warning"></span> ' . esc_html__('Duplicazione fallita.', 'fp-discount-gift') . '</div>';
+            elseif (isset($_GET['imported'])) :
+                $n = absint($_GET['imported']);
+                echo '<div class="fpdgift-alert fpdgift-alert-success"><span class="dashicons dashicons-yes-alt"></span> ' . esc_html(sprintf(/* translators: %d: count */ __('Importate %d regole.', 'fp-discount-gift'), $n)) . '</div>';
+            elseif (isset($_GET['import']) && 'no_file' === $_GET['import']) :
+                echo '<div class="fpdgift-alert fpdgift-alert-warning"><span class="dashicons dashicons-warning"></span> ' . esc_html__('Nessun file CSV selezionato.', 'fp-discount-gift') . '</div>';
+            elseif (isset($_GET['batch_created'])) :
+                $n = absint($_GET['batch_created']);
+                echo '<div class="fpdgift-alert fpdgift-alert-success"><span class="dashicons dashicons-yes-alt"></span> ' . esc_html(sprintf(/* translators: %d: count */ __('Creati %d cuponi usa-e-getta.', 'fp-discount-gift'), $n)) . '</div>';
             endif;
             ?>
 
@@ -214,6 +270,26 @@ final class SettingsPage
                                 <span class="fpdgift-toggle-slider"></span>
                             </label>
                         </div>
+                        <div class="fpdgift-toggle-row">
+                            <div class="fpdgift-toggle-info">
+                                <strong><?php esc_html_e('Invia email al destinatario gift card', 'fp-discount-gift'); ?></strong>
+                                <span><?php esc_html_e('Invia il codice e le istruzioni via email quando emetti una gift card con destinatario.', 'fp-discount-gift'); ?></span>
+                            </div>
+                            <label class="fpdgift-toggle">
+                                <input type="checkbox" name="gift_card_send_email" value="1" <?php checked(! empty($settings['gift_card_send_email'])); ?>>
+                                <span class="fpdgift-toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="fpdgift-toggle-row">
+                            <div class="fpdgift-toggle-info">
+                                <strong><?php esc_html_e('Usa Brevo per email gift card', 'fp-discount-gift'); ?></strong>
+                                <span><?php esc_html_e('Se FP-Marketing-Tracking-Layer ha Brevo configurato, usa l\'API transazionale Brevo invece di wp_mail.', 'fp-discount-gift'); ?></span>
+                            </div>
+                            <label class="fpdgift-toggle">
+                                <input type="checkbox" name="gift_card_email_via_brevo" value="1" <?php checked(! empty($settings['gift_card_email_via_brevo'])); ?>>
+                                <span class="fpdgift-toggle-slider"></span>
+                            </label>
+                        </div>
 
                         <div class="fpdgift-fields-grid" style="margin-top: 20px;">
                             <div class="fpdgift-field">
@@ -241,10 +317,24 @@ final class SettingsPage
                     <span class="fpdgift-badge fpdgift-badge-<?php echo $edit_rule ? 'warning' : 'success'; ?>"><?php echo $edit_rule ? esc_html__('Modifica', 'fp-discount-gift') : esc_html__('Nuovo', 'fp-discount-gift'); ?></span>
                 </div>
                 <div class="fpdgift-card-body">
-                    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" id="fpdgift-rule-form" <?php echo $edit_rule ? 'data-rule-id="' . esc_attr((string) $edit_rule->id) . '"' : ''; ?>>
                         <input type="hidden" name="action" value="fp_discountgift_save_rule">
                         <input type="hidden" name="id" value="<?php echo esc_attr((string) ($edit_rule?->id ?? 0)); ?>">
                         <?php wp_nonce_field('fp_discountgift_save_rule', 'fp_discountgift_nonce'); ?>
+
+                        <?php if ($edit_rule) : ?>
+                        <div class="fpdgift-preview-box" style="margin-bottom: 20px; padding: 16px; background: var(--fpdms-bg-light); border-radius: var(--radius-md);">
+                            <strong><?php esc_html_e('Anteprima sconto', 'fp-discount-gift'); ?></strong>
+                            <div class="fpdgift-fields-grid" style="margin-top: 10px;">
+                                <div class="fpdgift-field">
+                                    <label><?php esc_html_e('Importo carrello di test', 'fp-discount-gift'); ?></label>
+                                    <input type="number" id="fpdgift-preview-subtotal" min="0" step="0.01" value="100" placeholder="100">
+                                </div>
+                            </div>
+                            <button type="button" id="fpdgift-preview-btn" class="fpdgift-btn fpdgift-btn-secondary" style="margin-top: 10px;"><?php esc_html_e('Calcola sconto', 'fp-discount-gift'); ?></button>
+                            <div id="fpdgift-preview-result" style="margin-top: 10px; font-size: 14px;" hidden></div>
+                        </div>
+                        <?php endif; ?>
 
                         <div class="fpdgift-fields-grid">
                             <div class="fpdgift-field">
@@ -345,6 +435,21 @@ final class SettingsPage
                     <span class="fpdgift-badge fpdgift-badge-<?php echo $rules !== [] ? 'success' : 'neutral'; ?>"><?php echo esc_html((string) count($rules)); ?></span>
                 </div>
                 <div class="fpdgift-card-body">
+                    <form method="get" action="<?php echo esc_url(admin_url('admin.php')); ?>" class="fpdgift-bulk-bar" style="margin-bottom: 16px;">
+                        <input type="hidden" name="page" value="<?php echo esc_attr(self::MENU_SLUG); ?>">
+                        <input type="search" name="search_rules" value="<?php echo esc_attr($search); ?>" placeholder="<?php esc_attr_e('Cerca per codice o titolo...', 'fp-discount-gift'); ?>" style="padding: 8px 12px; border: 2px solid var(--fpdms-border); border-radius: var(--radius-md); min-width: 220px;">
+                        <button type="submit" class="fpdgift-btn fpdgift-btn-secondary"><?php esc_html_e('Cerca', 'fp-discount-gift'); ?></button>
+                        <?php if ($search !== '') : ?>
+                            <a href="<?php echo esc_url(admin_url('admin.php?page=' . self::MENU_SLUG)); ?>" class="fpdgift-btn fpdgift-btn-secondary"><?php esc_html_e('Annulla filtro', 'fp-discount-gift'); ?></a>
+                        <?php endif; ?>
+                        <a href="<?php echo esc_url(admin_url('admin-post.php?action=fp_discountgift_export_csv&fp_discountgift_nonce=' . wp_create_nonce('fp_discountgift_export_csv'))); ?>" class="fpdgift-btn fpdgift-btn-secondary"><?php esc_html_e('Esporta CSV', 'fp-discount-gift'); ?></a>
+                    </form>
+                    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" enctype="multipart/form-data" class="fpdgift-bulk-bar" style="margin-bottom: 16px;">
+                        <input type="hidden" name="action" value="fp_discountgift_import_csv">
+                        <?php wp_nonce_field('fp_discountgift_import_csv', 'fp_discountgift_nonce'); ?>
+                        <input type="file" name="csv_file" accept=".csv" required>
+                        <button type="submit" class="fpdgift-btn fpdgift-btn-secondary"><?php esc_html_e('Importa CSV', 'fp-discount-gift'); ?></button>
+                    </form>
                     <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
                         <input type="hidden" name="action" value="fp_discountgift_bulk_rules">
                         <?php wp_nonce_field('fp_discountgift_bulk_rules', 'fp_discountgift_nonce'); ?>
@@ -366,48 +471,85 @@ final class SettingsPage
                                     <th><?php esc_html_e('Titolo', 'fp-discount-gift'); ?></th>
                                     <th><?php esc_html_e('Tipo', 'fp-discount-gift'); ?></th>
                                     <th><?php esc_html_e('Importo', 'fp-discount-gift'); ?></th>
+                                    <th><?php esc_html_e('Usi', 'fp-discount-gift'); ?></th>
+                                    <th><?php esc_html_e('Ultimo uso', 'fp-discount-gift'); ?></th>
                                     <th><?php esc_html_e('Stato', 'fp-discount-gift'); ?></th>
                                     <th><?php esc_html_e('Azioni', 'fp-discount-gift'); ?></th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <?php if ($rules === []) : ?>
-                                    <tr><td colspan="8" style="text-align: center; padding: 24px; color: var(--fpdms-text-muted);"><?php esc_html_e('Nessuna regola configurata.', 'fp-discount-gift'); ?></td></tr>
+                                    <tr><td colspan="10" style="text-align: center; padding: 24px; color: var(--fpdms-text-muted);"><?php echo esc_html($search !== '' ? __('Nessuna regola trovata.', 'fp-discount-gift') : __('Nessuna regola configurata.', 'fp-discount-gift')); ?></td></tr>
                                 <?php else : ?>
                                     <?php foreach ($rules as $rule) : ?>
                                         <?php
-                                        $edit_url = add_query_arg(
-                                            ['page' => self::MENU_SLUG, 'edit_rule' => $rule->id],
-                                            admin_url('admin.php')
-                                        );
-                                        $delete_url = wp_nonce_url(
-                                            add_query_arg(
-                                                ['action' => 'fp_discountgift_delete_rule', 'rule_id' => $rule->id],
-                                                admin_url('admin-post.php')
-                                            ),
-                                            'fp_discountgift_delete_rule_' . $rule->id,
-                                            'fp_discountgift_nonce'
-                                        );
+                                        $stats = $usage_stats[$rule->id] ?? null;
+                                        $edit_url = add_query_arg(['page' => self::MENU_SLUG, 'edit_rule' => $rule->id], admin_url('admin.php'));
+                                        $dup_url = wp_nonce_url(add_query_arg(['action' => 'fp_discountgift_duplicate_rule', 'rule_id' => $rule->id], admin_url('admin-post.php')), 'fp_discountgift_duplicate_rule_' . $rule->id, 'fp_discountgift_nonce');
+                                        $delete_url = wp_nonce_url(add_query_arg(['action' => 'fp_discountgift_delete_rule', 'rule_id' => $rule->id], admin_url('admin-post.php')), 'fp_discountgift_delete_rule_' . $rule->id, 'fp_discountgift_nonce');
+                                        $last_used = $stats && ! empty($stats['last_used']) ? date_i18n(get_option('date_format'), strtotime($stats['last_used'])) : '-';
                                         ?>
-                                        <tr class="<?php echo empty($rule->is_enabled) ? 'is-disabled' : ''; ?>">
+                                        <tr class="<?php echo empty($rule->is_enabled) ? 'is-disabled' : ''; ?>" data-rule-id="<?php echo esc_attr((string) $rule->id); ?>">
                                             <td><input type="checkbox" name="rule_ids[]" value="<?php echo esc_attr((string) $rule->id); ?>"></td>
                                             <td><?php echo esc_html((string) $rule->id); ?></td>
                                             <td><code><?php echo esc_html($rule->code); ?></code></td>
                                             <td><?php echo esc_html($rule->title); ?></td>
                                             <td><?php echo esc_html($rule->discount_type); ?></td>
                                             <td><?php echo esc_html((string) $rule->amount); ?></td>
+                                            <td><?php echo esc_html((string) ($stats['usage_count'] ?? 0)); ?></td>
+                                            <td><?php echo esc_html($last_used); ?></td>
                                             <td><span class="fpdgift-badge fpdgift-badge-<?php echo $rule->is_enabled ? 'success' : 'neutral'; ?>"><?php echo esc_html($rule->is_enabled ? __('Attiva', 'fp-discount-gift') : __('Disattiva', 'fp-discount-gift')); ?></span></td>
                                             <td class="fpdgift-row-actions">
                                                 <a href="<?php echo esc_url($edit_url); ?>"><?php esc_html_e('Modifica', 'fp-discount-gift'); ?></a>
-                                                <a href="<?php echo esc_url($delete_url); ?>" class="fpdgift-link-danger" onclick="return confirm('<?php echo esc_attr__('Confermi eliminazione regola?', 'fp-discount-gift'); ?>');">
-                                                    <?php esc_html_e('Elimina', 'fp-discount-gift'); ?>
-                                                </a>
+                                                <a href="<?php echo esc_url($dup_url); ?>"><?php esc_html_e('Duplica', 'fp-discount-gift'); ?></a>
+                                                <a href="<?php echo esc_url($delete_url); ?>" class="fpdgift-link-danger" onclick="return confirm('<?php echo esc_attr__('Confermi eliminazione regola?', 'fp-discount-gift'); ?>');"><?php esc_html_e('Elimina', 'fp-discount-gift'); ?></a>
                                             </td>
                                         </tr>
                                     <?php endforeach; ?>
                                 <?php endif; ?>
                             </tbody>
                         </table>
+                    </form>
+                </div>
+            </div>
+
+            <div class="fpdgift-card">
+                <div class="fpdgift-card-header">
+                    <div class="fpdgift-card-header-left">
+                        <span class="dashicons dashicons-randomize"></span>
+                        <h2><?php esc_html_e('Genera cuponi usa-e-getta', 'fp-discount-gift'); ?></h2>
+                    </div>
+                    <span class="fpdgift-badge fpdgift-badge-neutral"><?php esc_html_e('Batch', 'fp-discount-gift'); ?></span>
+                </div>
+                <div class="fpdgift-card-body">
+                    <p class="description"><?php esc_html_e('Genera più cuponi monouso con codici univoci. Ideale per omaggi e campagne.', 'fp-discount-gift'); ?></p>
+                    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                        <input type="hidden" name="action" value="fp_discountgift_batch_single_use">
+                        <?php wp_nonce_field('fp_discountgift_batch_single_use', 'fp_discountgift_nonce'); ?>
+                        <div class="fpdgift-fields-grid">
+                            <div class="fpdgift-field">
+                                <label><?php esc_html_e('Prefisso codice', 'fp-discount-gift'); ?></label>
+                                <input type="text" name="batch_prefix" value="OMAGGIO" class="is-monospace" placeholder="OMAGGIO">
+                            </div>
+                            <div class="fpdgift-field">
+                                <label><?php esc_html_e('Numero cuponi (max 100)', 'fp-discount-gift'); ?></label>
+                                <input type="number" name="batch_count" min="1" max="100" value="10">
+                            </div>
+                            <div class="fpdgift-field">
+                                <label><?php esc_html_e('Tipo sconto', 'fp-discount-gift'); ?></label>
+                                <select name="batch_type">
+                                    <option value="fixed_cart"><?php esc_html_e('Importo fisso', 'fp-discount-gift'); ?></option>
+                                    <option value="percent"><?php esc_html_e('Percentuale', 'fp-discount-gift'); ?></option>
+                                </select>
+                            </div>
+                            <div class="fpdgift-field">
+                                <label><?php esc_html_e('Importo / Percentuale', 'fp-discount-gift'); ?></label>
+                                <input type="number" name="batch_amount" min="0" step="0.01" value="10" required>
+                            </div>
+                        </div>
+                        <p style="margin-top: 16px;">
+                            <button type="submit" class="fpdgift-btn fpdgift-btn-primary"><?php esc_html_e('Genera cuponi', 'fp-discount-gift'); ?></button>
+                        </p>
                     </form>
                 </div>
             </div>
@@ -524,6 +666,8 @@ final class SettingsPage
             'auto_apply_best_rule' => ! empty($_POST['auto_apply_best_rule']),
             'gift_card_reminder_days' => max(1, absint($_POST['gift_card_reminder_days'] ?? 7)),
             'gift_card_auto_expire' => ! empty($_POST['gift_card_auto_expire']),
+            'gift_card_send_email' => ! empty($_POST['gift_card_send_email']),
+            'gift_card_email_via_brevo' => ! empty($_POST['gift_card_email_via_brevo']),
         ];
 
         update_option(self::SETTINGS_OPTION, $settings);
@@ -597,11 +741,8 @@ final class SettingsPage
 
         $gift_card_id = $this->repository->createGiftCard($payload);
         if ($gift_card_id > 0) {
-            $gift_code = (string) ($payload['code'] !== '' ? strtoupper((string) $payload['code']) : '');
-            if ($gift_code === '') {
-                $created = $this->repository->getGiftCards();
-                $gift_code = (string) ($created[0]['code'] ?? '');
-            }
+            $created_card = $this->repository->getGiftCardById($gift_card_id);
+            $gift_code = $created_card ? (string) ($created_card['code'] ?? '') : '';
 
             do_action('fp_discountgift_gift_card_issued', $gift_code, [
                 'gift_card_id' => $gift_card_id,
@@ -612,6 +753,22 @@ final class SettingsPage
                     'em' => (string) $payload['recipient_email'],
                 ],
             ]);
+
+            $settings = get_option(self::SETTINGS_OPTION, []);
+            $send_email = is_array($settings) && ! empty($settings['gift_card_send_email']);
+            $recipient = sanitize_email((string) $payload['recipient_email']);
+            if ($send_email && $recipient !== '' && $created_card) {
+                $sender = new GiftCardEmailSender();
+                $sent = $sender->send($recipient, $created_card);
+                $redirect_params = ['gift_card_created' => '1'];
+                if ($sent) {
+                    $redirect_params['email_sent'] = '1';
+                } else {
+                    $redirect_params['email_sent'] = '0';
+                }
+                wp_redirect(admin_url('admin.php?page=' . self::MENU_SLUG . '&' . http_build_query($redirect_params)));
+                exit;
+            }
         }
 
         wp_redirect(admin_url('admin.php?page=' . self::MENU_SLUG . '&gift_card_created=1'));
@@ -673,6 +830,175 @@ final class SettingsPage
 
         wp_redirect(admin_url('admin.php?page=' . self::MENU_SLUG . '&bulk=1'));
         exit;
+    }
+
+    public function handleDuplicateRule(): void
+    {
+        if (! $this->canManage()) {
+            wp_die(esc_html__('Permessi insufficienti.', 'fp-discount-gift'));
+        }
+
+        $rule_id = isset($_GET['rule_id']) ? absint($_GET['rule_id']) : 0;
+        $nonce = isset($_GET['fp_discountgift_nonce']) ? sanitize_text_field(wp_unslash((string) $_GET['fp_discountgift_nonce'])) : '';
+
+        if ($rule_id <= 0 || ! wp_verify_nonce($nonce, 'fp_discountgift_duplicate_rule_' . $rule_id)) {
+            wp_die(esc_html__('Richiesta non valida.', 'fp-discount-gift'));
+        }
+
+        $new_id = $this->repository->duplicateRule($rule_id);
+        $redirect = $new_id > 0
+            ? admin_url('admin.php?page=' . self::MENU_SLUG . '&edit_rule=' . $new_id . '&duplicated=1')
+            : admin_url('admin.php?page=' . self::MENU_SLUG . '&duplicate_failed=1');
+        wp_redirect($redirect);
+        exit;
+    }
+
+    public function handleExportCsv(): void
+    {
+        if (! $this->canManage()) {
+            wp_die(esc_html__('Permessi insufficienti.', 'fp-discount-gift'));
+        }
+
+        if (! wp_verify_nonce(sanitize_text_field(wp_unslash($_GET['fp_discountgift_nonce'] ?? '')), 'fp_discountgift_export_csv')) {
+            wp_die(esc_html__('Richiesta non valida.', 'fp-discount-gift'));
+        }
+
+        $rules = $this->repository->getAllRules();
+        $fp = fopen('php://output', 'w');
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="fp-discount-gift-rules-' . gmdate('Y-m-d') . '.csv"');
+
+        fputcsv($fp, ['id', 'code', 'title', 'discount_type', 'amount', 'date_expires', 'usage_limit', 'usage_limit_per_user', 'minimum_amount', 'maximum_amount', 'individual_use', 'is_enabled', 'allowed_emails', 'product_ids', 'exclude_product_ids']);
+        foreach ($rules as $r) {
+            fputcsv($fp, [
+                $r->id,
+                $r->code,
+                $r->title,
+                $r->discount_type,
+                $r->amount,
+                $r->date_expires ?? '',
+                $r->usage_limit ?? '',
+                $r->usage_limit_per_user ?? '',
+                $r->minimum_amount ?? '',
+                $r->maximum_amount ?? '',
+                $r->individual_use ? '1' : '0',
+                $r->is_enabled ? '1' : '0',
+                implode(',', $r->allowed_emails),
+                implode(',', $r->product_ids),
+                implode(',', $r->exclude_product_ids),
+            ]);
+        }
+        fclose($fp);
+        exit;
+    }
+
+    public function handleImportCsv(): void
+    {
+        if (! $this->canManage()) {
+            wp_die(esc_html__('Permessi insufficienti.', 'fp-discount-gift'));
+        }
+
+        if (! $this->isValidNonce('fp_discountgift_import_csv')) {
+            wp_die(esc_html__('Nonce non valido.', 'fp-discount-gift'));
+        }
+
+        $file = $_FILES['csv_file'] ?? null;
+        if (! $file || empty($file['tmp_name']) || ! is_uploaded_file($file['tmp_name'])) {
+            wp_redirect(admin_url('admin.php?page=' . self::MENU_SLUG . '&import=no_file'));
+            exit;
+        }
+
+        $lines = @file($file['tmp_name'], FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        $lines = is_array($lines) ? array_slice($lines, 1) : [];
+        $rows = array_map(static fn (string $line): array => str_getcsv($line), $lines);
+        $imported = 0;
+        foreach ($rows as $row) {
+            if (count($row) < 12) {
+                continue;
+            }
+            $code = trim($row[1] ?? '');
+            if ($code === '' || $this->repository->codeExists($code)) {
+                continue;
+            }
+            $this->repository->saveRule([
+                'id' => 0,
+                'code' => $code,
+                'title' => trim($row[2] ?? ''),
+                'discount_type' => trim($row[3] ?? 'fixed_cart'),
+                'amount' => (float) ($row[4] ?? 0),
+                'date_expires' => trim($row[5] ?? '') ?: null,
+                'usage_limit' => absint($row[6] ?? 0) ?: null,
+                'usage_limit_per_user' => absint($row[7] ?? 0) ?: null,
+                'minimum_amount' => trim($row[8] ?? '') ?: null,
+                'maximum_amount' => trim($row[9] ?? '') ?: null,
+                'individual_use' => ($row[10] ?? '') === '1',
+                'is_enabled' => ($row[11] ?? '1') === '1',
+                'allowed_emails' => $this->parseEmails($row[12] ?? ''),
+                'product_ids' => $this->parseIds($row[13] ?? ''),
+                'exclude_product_ids' => $this->parseIds($row[14] ?? ''),
+            ]);
+            $imported++;
+        }
+        wp_redirect(admin_url('admin.php?page=' . self::MENU_SLUG . '&imported=' . $imported));
+        exit;
+    }
+
+    public function handleBatchSingleUse(): void
+    {
+        if (! $this->canManage()) {
+            wp_die(esc_html__('Permessi insufficienti.', 'fp-discount-gift'));
+        }
+
+        if (! $this->isValidNonce('fp_discountgift_batch_single_use')) {
+            wp_die(esc_html__('Nonce non valido.', 'fp-discount-gift'));
+        }
+
+        $count = min(100, max(1, absint($_POST['batch_count'] ?? 1)));
+        $prefix = sanitize_text_field(wp_unslash((string) ($_POST['batch_prefix'] ?? 'GC')));
+        $amount = (float) ($_POST['batch_amount'] ?? 0);
+        $discount_type = sanitize_text_field(wp_unslash((string) ($_POST['batch_type'] ?? 'fixed_cart')));
+        if (! in_array($discount_type, ['fixed_cart', 'percent'], true)) {
+            $discount_type = 'fixed_cart';
+        }
+
+        $created = 0;
+        for ($i = 0; $i < $count; $i++) {
+            $code = $this->repository->generateUniqueCode($prefix);
+            $id = $this->repository->saveRule([
+                'id' => 0,
+                'code' => $code,
+                'title' => sprintf(__('Cupone usa-e-getta %s', 'fp-discount-gift'), $code),
+                'discount_type' => $discount_type,
+                'amount' => $amount,
+                'usage_limit' => 1,
+                'individual_use' => true,
+                'is_enabled' => true,
+            ]);
+            if ($id > 0) {
+                $created++;
+            }
+        }
+        wp_redirect(admin_url('admin.php?page=' . self::MENU_SLUG . '&batch_created=' . $created));
+        exit;
+    }
+
+    public function ajaxPreviewDiscount(): void
+    {
+        check_ajax_referer('fp_discountgift_admin', 'nonce');
+        if (! $this->canManage()) {
+            wp_send_json_error(['message' => 'Unauthorized']);
+        }
+
+        $rule_id = absint($_POST['rule_id'] ?? 0);
+        $subtotal = (float) ($_POST['subtotal'] ?? 0);
+        $rule = $rule_id > 0 ? $this->repository->findById($rule_id) : null;
+
+        if (! $rule instanceof DiscountRule || $subtotal <= 0) {
+            wp_send_json_success(['discount' => 0, 'total' => $subtotal]);
+        }
+
+        $discount = $this->engine->calculateDiscountForSubtotal($rule, $subtotal);
+        wp_send_json_success(['discount' => $discount, 'total' => round($subtotal - $discount, 2)]);
     }
 
     /**

@@ -12,6 +12,8 @@ use WC_Order;
 use function add_action;
 use function add_filter;
 use function do_action;
+use function is_array;
+use function min;
 use function sanitize_text_field;
 use function strtoupper;
 use function wc_add_notice;
@@ -54,28 +56,36 @@ final class CheckoutBridge
         }
 
         $rule_code = (string) WC()->session->get('fp_discountgift_active_code', '');
-        if ($rule_code === '') {
+        if ($rule_code !== '') {
+            $rule = $this->engine->evaluateByCode($rule_code, WC()->cart, $this->resolveCustomerEmail());
+            if ($rule instanceof DiscountRule) {
+                $shadow_code = $this->shadow_coupon_manager->ensureShadowCoupon(
+                    $rule->code,
+                    $rule->id,
+                    $rule->discount_type,
+                    $rule->amount
+                );
+
+                if (is_string($shadow_code) && $shadow_code !== '' && ! in_array($shadow_code, WC()->cart->get_applied_coupons(), true)) {
+                    WC()->cart->apply_coupon($shadow_code);
+                }
+            }
+        }
+
+        $gift_code = (string) WC()->session->get('fp_discountgift_active_gift_card_code', '');
+        $gift_amount = (float) WC()->session->get('fp_discountgift_active_gift_card_amount', 0);
+        $gift_id = (int) WC()->session->get('fp_discountgift_active_gift_card_id', 0);
+        if ($gift_code === '' || $gift_amount <= 0 || $gift_id <= 0) {
             return;
         }
 
-        $rule = $this->engine->evaluateByCode($rule_code, WC()->cart, $this->resolveCustomerEmail());
-        if (! $rule instanceof DiscountRule) {
+        $gift_shadow_code = $this->shadow_coupon_manager->ensureGiftCardShadowCoupon($gift_code, $gift_id, $gift_amount);
+        if (! is_string($gift_shadow_code) || $gift_shadow_code === '') {
             return;
         }
 
-        $shadow_code = $this->shadow_coupon_manager->ensureShadowCoupon(
-            $rule->code,
-            $rule->id,
-            $rule->discount_type,
-            $rule->amount
-        );
-
-        if (! is_string($shadow_code) || $shadow_code === '') {
-            return;
-        }
-
-        if (! in_array($shadow_code, WC()->cart->get_applied_coupons(), true)) {
-            WC()->cart->apply_coupon($shadow_code);
+        if (! in_array($gift_shadow_code, WC()->cart->get_applied_coupons(), true)) {
+            WC()->cart->apply_coupon($gift_shadow_code);
         }
     }
 
@@ -107,6 +117,61 @@ final class CheckoutBridge
                 'em' => $customer_email,
             ],
         ]);
+
+        $repository = $this->getRepository();
+        if ($repository) {
+            $gift_card = $repository->findGiftCardByCode($normalized_code);
+            if (is_array($gift_card)) {
+                $gift_status = (string) ($gift_card['status'] ?? '');
+                $gift_balance = (float) ($gift_card['current_balance'] ?? 0);
+                $gift_id = (int) ($gift_card['id'] ?? 0);
+                $gift_subtotal = (float) WC()->cart->get_subtotal();
+                $gift_apply_amount = min($gift_balance, $gift_subtotal);
+
+                if ($gift_status !== 'active' || $gift_balance <= 0 || $gift_apply_amount <= 0 || $gift_id <= 0) {
+                    do_action('fp_discountgift_discount_rejected', $normalized_code, [
+                        'reason' => 'gift_card_not_active_or_empty',
+                        'currency' => get_woocommerce_currency(),
+                        'email' => $customer_email,
+                        'user_data' => [
+                            'em' => $customer_email,
+                        ],
+                    ]);
+
+                    wc_add_notice(__('Gift card non disponibile o senza saldo.', 'fp-discount-gift'), 'error');
+                    WC()->cart->remove_coupon($coupon_code);
+                    return;
+                }
+
+                WC()->session->set('fp_discountgift_active_gift_card_code', $normalized_code);
+                WC()->session->set('fp_discountgift_active_gift_card_amount', $gift_apply_amount);
+                WC()->session->set('fp_discountgift_active_gift_card_id', $gift_id);
+
+                $gift_shadow_code = $this->shadow_coupon_manager->ensureGiftCardShadowCoupon(
+                    $normalized_code,
+                    $gift_id,
+                    $gift_apply_amount
+                );
+
+                if (is_string($gift_shadow_code) && $gift_shadow_code !== '' && ! in_array($gift_shadow_code, WC()->cart->get_applied_coupons(), true)) {
+                    WC()->cart->apply_coupon($gift_shadow_code);
+                }
+
+                WC()->cart->remove_coupon($coupon_code);
+
+                do_action('fp_discountgift_gift_card_applied', $normalized_code, [
+                    'gift_card_id' => $gift_id,
+                    'value' => $gift_apply_amount,
+                    'currency' => (string) ($gift_card['currency'] ?? get_woocommerce_currency()),
+                    'email' => $customer_email,
+                    'user_data' => [
+                        'em' => $customer_email,
+                    ],
+                ]);
+                wc_add_notice(__('Gift card applicata correttamente.', 'fp-discount-gift'), 'success');
+                return;
+            }
+        }
 
         $rule = $this->engine->evaluateByCode($coupon_code, WC()->cart, $customer_email);
         if (! $rule instanceof DiscountRule) {
@@ -157,6 +222,25 @@ final class CheckoutBridge
         }
 
         $clean = strtoupper(sanitize_text_field($coupon_code));
+        if (str_starts_with($clean, 'FPDGGC-')) {
+            $gift_code = (string) WC()->session->get('fp_discountgift_active_gift_card_code', '');
+            $gift_amount = (float) WC()->session->get('fp_discountgift_active_gift_card_amount', 0);
+            WC()->session->__unset('fp_discountgift_active_gift_card_code');
+            WC()->session->__unset('fp_discountgift_active_gift_card_amount');
+            WC()->session->__unset('fp_discountgift_active_gift_card_id');
+
+            do_action('fp_discountgift_gift_card_removed', $gift_code !== '' ? $gift_code : $clean, [
+                'value' => $gift_amount,
+                'currency' => get_woocommerce_currency(),
+                'email' => $this->resolveCustomerEmail(),
+                'user_data' => [
+                    'em' => $this->resolveCustomerEmail(),
+                ],
+            ]);
+
+            return;
+        }
+
         if (str_starts_with($clean, 'FPDG-')) {
             WC()->session->__unset('fp_discountgift_active_code');
             do_action('fp_discountgift_discount_removed', $clean, [
@@ -212,32 +296,57 @@ final class CheckoutBridge
             $active_code = (string) WC()->session->get('fp_discountgift_active_code', '');
         }
 
-        if ($active_code === '') {
-            return;
-        }
-
-        if (! WC()->cart) {
-            return;
-        }
-
-        $rule = $this->engine->evaluateByCode($active_code, WC()->cart, $this->resolveCustomerEmail());
-        if (! $rule instanceof DiscountRule) {
-            return;
-        }
-
         $repository = $this->getRepository();
         if ($repository === null) {
             return;
         }
 
-        $amount = $this->engine->calculateDiscountAmount($rule, WC()->cart);
-        $repository->recordUsage(
-            $rule->id,
-            $order_id,
-            (int) $order->get_user_id(),
-            (string) $order->get_billing_email(),
-            $amount
-        );
+        if ($active_code !== '' && WC()->cart) {
+            $rule = $this->engine->evaluateByCode($active_code, WC()->cart, $this->resolveCustomerEmail());
+            if ($rule instanceof DiscountRule) {
+                $amount = $this->engine->calculateDiscountAmount($rule, WC()->cart);
+                $repository->recordUsage(
+                    $rule->id,
+                    $order_id,
+                    (int) $order->get_user_id(),
+                    (string) $order->get_billing_email(),
+                    $amount
+                );
+            }
+        }
+
+        if (! WC()->session) {
+            return;
+        }
+
+        $gift_code = (string) WC()->session->get('fp_discountgift_active_gift_card_code', '');
+        $gift_amount = (float) WC()->session->get('fp_discountgift_active_gift_card_amount', 0);
+        if ($gift_code === '' || $gift_amount <= 0) {
+            return;
+        }
+
+        $redeemed = $repository->redeemGiftCardByCode($gift_code, $gift_amount, $order_id, 0);
+        if (is_array($redeemed)) {
+            do_action('fp_discountgift_gift_card_redeemed', $gift_code, [
+                'gift_card_id' => (int) ($redeemed['id'] ?? 0),
+                'value' => (float) ($redeemed['redeemed_amount'] ?? $gift_amount),
+                'remaining_balance' => (float) ($redeemed['current_balance'] ?? 0),
+                'currency' => (string) ($redeemed['currency'] ?? $order->get_currency()),
+                'order_id' => $order_id,
+                'email' => (string) $order->get_billing_email(),
+                'user_data' => [
+                    'em' => (string) $order->get_billing_email(),
+                    'fn' => (string) $order->get_billing_first_name(),
+                    'ln' => (string) $order->get_billing_last_name(),
+                    'ph' => (string) $order->get_billing_phone(),
+                ],
+            ]);
+        }
+
+        WC()->session->__unset('fp_discountgift_active_gift_card_code');
+        WC()->session->__unset('fp_discountgift_active_gift_card_amount');
+        WC()->session->__unset('fp_discountgift_active_gift_card_id');
+        WC()->session->__unset('fp_discountgift_active_code');
     }
 
     /**

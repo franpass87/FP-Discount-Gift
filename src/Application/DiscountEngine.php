@@ -76,6 +76,14 @@ final class DiscountEngine
     public function calculateDiscountAmount(DiscountRule $rule, WC_Cart $cart): float
     {
         $subtotal = (float) $cart->get_subtotal();
+        return $this->calculateDiscountForSubtotal($rule, $subtotal);
+    }
+
+    /**
+     * Calcola importo sconto per una regola dato un subtotale (per preview).
+     */
+    public function calculateDiscountForSubtotal(DiscountRule $rule, float $subtotal): float
+    {
         if ($rule->discount_type === 'percent') {
             return round(max(0, ($subtotal * $rule->amount) / 100), 2);
         }

@@ -19,7 +19,7 @@ use function wp_json_encode;
  */
 final class Migrations
 {
-    private const DB_VERSION = '1.0.0';
+    private const DB_VERSION = '1.1.0';
     private const DB_VERSION_OPTION = 'fp_discountgift_db_version';
     private const SETTINGS_OPTION = 'fp_discountgift_settings';
 
@@ -45,6 +45,8 @@ final class Migrations
         $rules_table = $wpdb->prefix . 'fp_discountgift_rules';
         $usage_table = $wpdb->prefix . 'fp_discountgift_rule_usages';
         $events_table = $wpdb->prefix . 'fp_discountgift_voucher_events';
+        $gift_cards_table = $wpdb->prefix . 'fp_discountgift_gift_cards';
+        $gift_movements_table = $wpdb->prefix . 'fp_discountgift_gift_card_movements';
 
         $rules_sql = "CREATE TABLE {$rules_table} (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -101,9 +103,43 @@ final class Migrations
             KEY voucher_id (voucher_id)
         ) {$charset_collate};";
 
+        $gift_cards_sql = "CREATE TABLE {$gift_cards_table} (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            code VARCHAR(100) NOT NULL,
+            initial_balance DECIMAL(18,4) NOT NULL DEFAULT 0,
+            current_balance DECIMAL(18,4) NOT NULL DEFAULT 0,
+            currency VARCHAR(10) NOT NULL DEFAULT 'EUR',
+            status VARCHAR(20) NOT NULL DEFAULT 'active',
+            recipient_email VARCHAR(190) NULL,
+            expires_at DATETIME NULL,
+            metadata LONGTEXT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            UNIQUE KEY code (code),
+            KEY status (status),
+            KEY expires_at (expires_at)
+        ) {$charset_collate};";
+
+        $gift_movements_sql = "CREATE TABLE {$gift_movements_table} (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            gift_card_id BIGINT UNSIGNED NOT NULL,
+            movement_type VARCHAR(30) NOT NULL,
+            amount DECIMAL(18,4) NOT NULL DEFAULT 0,
+            order_id BIGINT UNSIGNED NULL,
+            reservation_id BIGINT UNSIGNED NULL,
+            note VARCHAR(255) NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY gift_card_id (gift_card_id),
+            KEY movement_type (movement_type)
+        ) {$charset_collate};";
+
         dbDelta($rules_sql);
         dbDelta($usage_sql);
         dbDelta($events_sql);
+        dbDelta($gift_cards_sql);
+        dbDelta($gift_movements_sql);
 
         $this->ensureDefaultSettings();
         update_option(self::DB_VERSION_OPTION, self::DB_VERSION);
@@ -118,6 +154,10 @@ final class Migrations
             'enable_shadow_coupons' => true,
             'allow_wc_coupon_field' => false,
             'auto_apply_best_rule' => false,
+            'gift_card_reminder_days' => 7,
+            'gift_card_auto_expire' => true,
+            'gift_card_send_email' => true,
+            'gift_card_email_via_brevo' => false,
         ];
 
         if (get_option(self::SETTINGS_OPTION, null) === null) {

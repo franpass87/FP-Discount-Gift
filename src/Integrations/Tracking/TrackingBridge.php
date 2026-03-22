@@ -22,6 +22,12 @@ final class TrackingBridge
         add_action('fp_discountgift_discount_rejected', [$this, 'onDiscountRejected'], 10, 2);
         add_action('fp_discountgift_discount_applied', [$this, 'onDiscountApplied'], 10, 2);
         add_action('fp_discountgift_discount_removed', [$this, 'onDiscountRemoved'], 10, 2);
+        add_action('fp_discountgift_gift_card_applied', [$this, 'onGiftCardApplied'], 10, 2);
+        add_action('fp_discountgift_gift_card_redeemed', [$this, 'onGiftCardRedeemed'], 10, 2);
+        add_action('fp_discountgift_gift_card_removed', [$this, 'onGiftCardRemoved'], 10, 2);
+        add_action('fp_discountgift_gift_card_issued', [$this, 'onGiftCardIssued'], 10, 2);
+        add_action('fp_discountgift_gift_card_expiring_soon', [$this, 'onGiftCardExpiringSoon'], 10, 2);
+        add_action('fp_discountgift_gift_card_expired', [$this, 'onGiftCardExpired'], 10, 2);
         add_action('fp_discountgift_voucher_synced', [$this, 'onVoucherSynced'], 10, 6);
     }
 
@@ -108,6 +114,153 @@ final class TrackingBridge
             'coupon' => $coupon_code,
             'event_id' => $this->eventId('discount_removed'),
             'currency' => (string) ($context['currency'] ?? 'EUR'),
+            'email' => (string) ($context['email'] ?? ''),
+            'user_data' => is_array($context['user_data'] ?? null) ? $context['user_data'] : [],
+            'source' => 'fp-discount-gift',
+            'meta' => is_array($context) ? $context : [],
+        ]);
+    }
+
+    /**
+     * Inoltra applicazione gift card.
+     *
+     * @param array<string,mixed> $context
+     */
+    public function onGiftCardApplied(string $gift_card_code, array $context = []): void
+    {
+        if (! defined('FP_TRACKING_VERSION')) {
+            return;
+        }
+
+        do_action('fp_tracking_event', 'gift_card_applied', [
+            'gift_card_code' => $gift_card_code,
+            'gift_card_id' => (int) ($context['gift_card_id'] ?? 0),
+            'event_id' => $this->eventId('gift_card_applied'),
+            'value' => (float) ($context['value'] ?? 0),
+            'currency' => (string) ($context['currency'] ?? 'EUR'),
+            'email' => (string) ($context['email'] ?? ''),
+            'user_data' => is_array($context['user_data'] ?? null) ? $context['user_data'] : [],
+            'source' => 'fp-discount-gift',
+            'meta' => is_array($context) ? $context : [],
+        ]);
+    }
+
+    /**
+     * Inoltra riscatto saldo gift card.
+     *
+     * @param array<string,mixed> $context
+     */
+    public function onGiftCardRedeemed(string $gift_card_code, array $context = []): void
+    {
+        if (! defined('FP_TRACKING_VERSION')) {
+            return;
+        }
+
+        do_action('fp_tracking_event', 'gift_card_redeemed', [
+            'gift_card_code' => $gift_card_code,
+            'gift_card_id' => (int) ($context['gift_card_id'] ?? 0),
+            'order_id' => (int) ($context['order_id'] ?? 0),
+            'event_id' => $this->eventId('gift_card_redeemed'),
+            'value' => (float) ($context['value'] ?? 0),
+            'remaining_balance' => (float) ($context['remaining_balance'] ?? 0),
+            'currency' => (string) ($context['currency'] ?? 'EUR'),
+            'email' => (string) ($context['email'] ?? ''),
+            'user_data' => is_array($context['user_data'] ?? null) ? $context['user_data'] : [],
+            'source' => 'fp-discount-gift',
+            'meta' => is_array($context) ? $context : [],
+        ]);
+    }
+
+    /**
+     * Inoltra rimozione gift card dal carrello.
+     *
+     * @param array<string,mixed> $context
+     */
+    public function onGiftCardRemoved(string $gift_card_code, array $context = []): void
+    {
+        if (! defined('FP_TRACKING_VERSION')) {
+            return;
+        }
+
+        do_action('fp_tracking_event', 'gift_card_removed', [
+            'gift_card_code' => $gift_card_code,
+            'event_id' => $this->eventId('gift_card_removed'),
+            'value' => (float) ($context['value'] ?? 0),
+            'currency' => (string) ($context['currency'] ?? 'EUR'),
+            'email' => (string) ($context['email'] ?? ''),
+            'user_data' => is_array($context['user_data'] ?? null) ? $context['user_data'] : [],
+            'source' => 'fp-discount-gift',
+            'meta' => is_array($context) ? $context : [],
+        ]);
+    }
+
+    /**
+     * Inoltra emissione gift card da admin.
+     *
+     * @param array<string,mixed> $context
+     */
+    public function onGiftCardIssued(string $gift_card_code, array $context = []): void
+    {
+        if (! defined('FP_TRACKING_VERSION')) {
+            return;
+        }
+
+        do_action('fp_tracking_event', 'gift_card_issued', [
+            'gift_card_code' => $gift_card_code,
+            'gift_card_id' => (int) ($context['gift_card_id'] ?? 0),
+            'event_id' => $this->eventId('gift_card_issued'),
+            'value' => (float) ($context['value'] ?? 0),
+            'currency' => (string) ($context['currency'] ?? 'EUR'),
+            'email' => (string) ($context['email'] ?? ''),
+            'user_data' => is_array($context['user_data'] ?? null) ? $context['user_data'] : [],
+            'source' => 'fp-discount-gift',
+            'meta' => is_array($context) ? $context : [],
+        ]);
+    }
+
+    /**
+     * Inoltra reminder gift card in scadenza.
+     *
+     * @param array<string,mixed> $context
+     */
+    public function onGiftCardExpiringSoon(string $gift_card_code, array $context = []): void
+    {
+        if (! defined('FP_TRACKING_VERSION')) {
+            return;
+        }
+
+        do_action('fp_tracking_event', 'gift_card_expiring_soon', [
+            'gift_card_code' => $gift_card_code,
+            'gift_card_id' => (int) ($context['gift_card_id'] ?? 0),
+            'event_id' => $this->eventId('gift_card_expiring_soon'),
+            'value' => (float) ($context['value'] ?? 0),
+            'currency' => (string) ($context['currency'] ?? 'EUR'),
+            'expires_at' => (string) ($context['expires_at'] ?? ''),
+            'email' => (string) ($context['email'] ?? ''),
+            'user_data' => is_array($context['user_data'] ?? null) ? $context['user_data'] : [],
+            'source' => 'fp-discount-gift',
+            'meta' => is_array($context) ? $context : [],
+        ]);
+    }
+
+    /**
+     * Inoltra evento gift card scaduta.
+     *
+     * @param array<string,mixed> $context
+     */
+    public function onGiftCardExpired(string $gift_card_code, array $context = []): void
+    {
+        if (! defined('FP_TRACKING_VERSION')) {
+            return;
+        }
+
+        do_action('fp_tracking_event', 'gift_card_expired', [
+            'gift_card_code' => $gift_card_code,
+            'gift_card_id' => (int) ($context['gift_card_id'] ?? 0),
+            'event_id' => $this->eventId('gift_card_expired'),
+            'value' => (float) ($context['value'] ?? 0),
+            'currency' => (string) ($context['currency'] ?? 'EUR'),
+            'expires_at' => (string) ($context['expires_at'] ?? ''),
             'email' => (string) ($context['email'] ?? ''),
             'user_data' => is_array($context['user_data'] ?? null) ? $context['user_data'] : [],
             'source' => 'fp-discount-gift',

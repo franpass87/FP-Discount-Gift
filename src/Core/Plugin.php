@@ -8,6 +8,7 @@ use FP\DiscountGift\Admin\SettingsPage;
 use FP\DiscountGift\Application\DiscountEngine;
 use FP\DiscountGift\Infrastructure\DB\DiscountRuleRepository;
 use FP\DiscountGift\Infrastructure\DB\Migrations;
+use FP\DiscountGift\Integrations\Cron\GiftCardScheduler;
 use FP\DiscountGift\Integrations\Experiences\ExperienceEventBridge;
 use FP\DiscountGift\Integrations\Tracking\TrackingBridge;
 use FP\DiscountGift\Integrations\WooCommerce\CheckoutBridge;
@@ -42,6 +43,8 @@ final class Plugin
 
     private SettingsPage $settings_page;
 
+    private GiftCardScheduler $gift_card_scheduler;
+
     /**
      * Restituisce l'istanza singleton del plugin.
      */
@@ -59,7 +62,8 @@ final class Plugin
         $this->checkout_bridge = new CheckoutBridge($this->engine, $this->shadow_coupon_manager);
         $this->experience_event_bridge = new ExperienceEventBridge();
         $this->tracking_bridge = new TrackingBridge();
-        $this->settings_page = new SettingsPage($this->repository);
+        $this->settings_page = new SettingsPage($this->repository, $this->engine);
+        $this->gift_card_scheduler = new GiftCardScheduler($this->repository);
     }
 
     /**
@@ -76,6 +80,7 @@ final class Plugin
         $this->checkout_bridge->register();
         $this->experience_event_bridge->register();
         $this->tracking_bridge->register();
+        $this->gift_card_scheduler->register();
     }
 
     /**
@@ -97,6 +102,7 @@ final class Plugin
     public function deactivate(): void
     {
         Roles::removeCapabilities();
+        GiftCardScheduler::clearScheduled();
     }
 
     /**
