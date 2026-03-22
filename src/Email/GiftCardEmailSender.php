@@ -193,9 +193,8 @@ final class GiftCardEmailSender
         $templateId = (int) ($settings['gift_card_brevo_template_id'] ?? 0);
         $templateId = (int) apply_filters('fp_discountgift_brevo_template_id', $templateId);
 
-        $tracking = get_option('fp_tracking_settings', []);
-        $apiKey = is_array($tracking) ? ($tracking['brevo_api_key'] ?? '') : '';
-        if ($apiKey === '' || ! is_string($apiKey)) {
+        $apiKey = $this->getBrevoApiKey();
+        if ($apiKey === '') {
             return false;
         }
 
@@ -248,9 +247,24 @@ final class GiftCardEmailSender
             return false;
         }
 
+        return $this->getBrevoApiKey() !== '';
+    }
+
+    /**
+     * Restituisce API key Brevo da FP-Tracking (centralizzato) o da fp_tracking_settings (fallback).
+     */
+    private function getBrevoApiKey(): string
+    {
+        if (function_exists('fp_tracking_get_brevo_settings')) {
+            $central = fp_tracking_get_brevo_settings();
+            if (! empty($central['enabled']) && ! empty($central['api_key'])) {
+                return (string) $central['api_key'];
+            }
+        }
+
         $tracking = get_option('fp_tracking_settings', []);
         $apiKey = is_array($tracking) ? ($tracking['brevo_api_key'] ?? '') : '';
 
-        return $apiKey !== '' && ! empty($tracking['brevo_enabled']);
+        return ! empty($tracking['brevo_enabled']) ? (string) $apiKey : '';
     }
 }

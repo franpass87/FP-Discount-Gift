@@ -29,6 +29,9 @@ Caratteristiche principali:
 
 == Changelog ==
 
+= 1.2.3 =
+* Brevo centralizzato: API key e stato letti da FP-Tracking (fp_tracking_get_brevo_settings).
+
 = 1.2.2 =
 * Prodotto gift card: importo scelto dal cliente con min/max configurabili.
 * Supporto prodotti variabili con importo personalizzato per variante.

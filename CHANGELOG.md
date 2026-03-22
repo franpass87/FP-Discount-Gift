@@ -1,3 +1,7 @@
+## [1.2.3] - 2026-03-23
+### Changed
+- Brevo centralizzato: API key e stato abilitato ora letti da `fp_tracking_get_brevo_settings()` (FP-Tracking) con fallback a fp_tracking_settings.
+
 ## [1.2.2] - 2026-03-22
 ### Added
 - Prodotto gift card: opzione "Importo scelto dal cliente" — il cliente inserisce l'importo che diventa prezzo e saldo.
