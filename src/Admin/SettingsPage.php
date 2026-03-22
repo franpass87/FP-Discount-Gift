@@ -297,6 +297,11 @@ final class SettingsPage
                                 <input type="number" name="gift_card_reminder_days" min="1" step="1" value="<?php echo esc_attr((string) ($settings['gift_card_reminder_days'] ?? 7)); ?>">
                                 <span class="fpdgift-hint"><?php esc_html_e('Giorni prima della scadenza per inviare il promemoria.', 'fp-discount-gift'); ?></span>
                             </div>
+                            <div class="fpdgift-field">
+                                <label><?php esc_html_e('ID template Brevo (opzionale)', 'fp-discount-gift'); ?></label>
+                                <input type="number" name="gift_card_brevo_template_id" min="0" step="1" value="<?php echo esc_attr((string) ($settings['gift_card_brevo_template_id'] ?? 0)); ?>" placeholder="0">
+                                <span class="fpdgift-hint"><?php esc_html_e('Se &gt; 0 e Brevo attivo, usa il template Brevo invece dell\'HTML standard. Parametri: CODE, AMOUNT, CURRENCY, EXPIRES_AT, SITE_NAME, SITE_URL, CHECKOUT_URL, MESSAGE.', 'fp-discount-gift'); ?></span>
+                            </div>
                         </div>
 
                         <p style="margin-top: 20px;">
@@ -668,6 +673,7 @@ final class SettingsPage
             'gift_card_auto_expire' => ! empty($_POST['gift_card_auto_expire']),
             'gift_card_send_email' => ! empty($_POST['gift_card_send_email']),
             'gift_card_email_via_brevo' => ! empty($_POST['gift_card_email_via_brevo']),
+            'gift_card_brevo_template_id' => max(0, absint($_POST['gift_card_brevo_template_id'] ?? 0)),
         ];
 
         update_option(self::SETTINGS_OPTION, $settings);

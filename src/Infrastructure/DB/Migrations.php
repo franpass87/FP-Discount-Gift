@@ -158,6 +158,7 @@ final class Migrations
             'gift_card_auto_expire' => true,
             'gift_card_send_email' => true,
             'gift_card_email_via_brevo' => false,
+            'gift_card_brevo_template_id' => 0,
         ];
 
         if (get_option(self::SETTINGS_OPTION, null) === null) {

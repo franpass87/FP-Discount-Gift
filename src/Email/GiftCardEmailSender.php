@@ -7,6 +7,7 @@ namespace FP\DiscountGift\Email;
 use function apply_filters;
 use function get_bloginfo;
 use function home_url;
+use function is_array;
 use function sanitize_email;
 use function sprintf;
 use function wp_mail;
@@ -14,11 +15,25 @@ use function wp_remote_post;
 
 /**
  * Invia email gift card al destinatario.
- * Supporta wp_mail e opzionale Brevo Transactional API (se configurato in FP-Marketing-Tracking-Layer).
+ * Supporta wp_mail, Brevo Transactional API (htmlContent o templateId) e eventi fp_tracking_event per Brevo.
  */
 final class GiftCardEmailSender
 {
     private const BREVO_ENDPOINT = 'https://api.brevo.com/v3/smtp/email';
+
+    /**
+     * Parametri disponibili per template Brevo (usa {{ params.NOME }} nel template).
+     */
+    public const BREVO_TEMPLATE_PARAMS = [
+        'CODE',
+        'AMOUNT',
+        'CURRENCY',
+        'EXPIRES_AT',
+        'SITE_NAME',
+        'SITE_URL',
+        'CHECKOUT_URL',
+        'MESSAGE',
+    ];
 
     /**
      * Invia email con codice e dettagli gift card.
@@ -66,7 +81,41 @@ final class GiftCardEmailSender
     }
 
     /**
-     * Costruisce corpo email in HTML.
+     * Restituisce parametri per template Brevo.
+     *
+     * @return array<string, string>
+     */
+    public function getBrevoTemplateParams(array $giftCard): array
+    {
+        $code = (string) ($giftCard['code'] ?? '');
+        $amount = (string) ($giftCard['initial_balance'] ?? $giftCard['current_balance'] ?? '0');
+        $currency = (string) ($giftCard['currency'] ?? 'EUR');
+        $expires = (string) ($giftCard['expires_at'] ?? '');
+        $siteName = get_bloginfo('name');
+        $siteUrl = home_url();
+        $checkoutUrl = function_exists('wc_get_checkout_url') ? wc_get_checkout_url() : $siteUrl;
+        $message = sprintf(
+            /* translators: 1: site name */
+            __('%s ti ha inviato una gift card spendibile nel nostro negozio.', 'fp-discount-gift'),
+            $siteName
+        );
+
+        $params = [
+            'CODE' => $code,
+            'AMOUNT' => $amount,
+            'CURRENCY' => $currency,
+            'EXPIRES_AT' => $expires,
+            'SITE_NAME' => $siteName,
+            'SITE_URL' => $siteUrl,
+            'CHECKOUT_URL' => $checkoutUrl,
+            'MESSAGE' => $message,
+        ];
+
+        return apply_filters('fp_discountgift_brevo_template_params', $params, $giftCard);
+    }
+
+    /**
+     * Costruisce corpo email HTML standard ben strutturato (compatibile client email).
      *
      * @param array<string, mixed> $giftCard
      */
@@ -80,30 +129,48 @@ final class GiftCardEmailSender
         $siteUrl = home_url();
         $checkoutUrl = function_exists('wc_get_checkout_url') ? wc_get_checkout_url() : $siteUrl;
 
-        $expiresHtml = $expires !== ''
+        $expiresRow = $expires !== ''
             ? sprintf(
-                '<p>%s: <strong>%s</strong></p>',
+                '<tr><td style="padding:8px 0;color:#64748b;font-size:14px;">%s</td><td style="padding:8px 0;text-align:right;font-weight:600;">%s</td></tr>',
                 esc_html__('Valida fino al', 'fp-discount-gift'),
                 esc_html($expires)
             )
             : '';
 
-        return '<div style="font-family:sans-serif;max-width:500px;">' .
-            '<h2>' . esc_html__('Hai ricevuto una gift card!', 'fp-discount-gift') . '</h2>' .
-            '<p>' . sprintf(
+        $ctaLabel = esc_html__('Vai al checkout', 'fp-discount-gift');
+        $ctaUrl = esc_url($checkoutUrl);
+
+        return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Oxygen-Sans,Ubuntu,sans-serif;">' .
+            '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f1f5f9;padding:24px 16px;">' .
+            '<tr><td align="center">' .
+            '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:520px;background:#fff;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,.05);overflow:hidden;">' .
+            '<tr><td style="padding:32px 24px;background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%);text-align:center;">' .
+            '<h1 style="margin:0;color:#fff;font-size:24px;font-weight:600;">' . esc_html__('Hai ricevuto una gift card!', 'fp-discount-gift') . '</h1>' .
+            '<p style="margin:8px 0 0;color:rgba(255,255,255,.9);font-size:14px;">' . esc_html($siteName) . '</p>' .
+            '</td></tr>' .
+            '<tr><td style="padding:32px 24px;">' .
+            '<p style="margin:0 0 20px;color:#475569;font-size:15px;line-height:1.6;">' . sprintf(
                 /* translators: 1: site name */
                 esc_html__('%s ti ha inviato una gift card spendibile nel nostro negozio.', 'fp-discount-gift'),
                 esc_html($siteName)
             ) . '</p>' .
-            '<p><strong>' . esc_html__('Codice gift card', 'fp-discount-gift') . ':</strong><br>' .
-            '<code style="font-size:18px;background:#f0f0f0;padding:8px 12px;display:inline-block;margin:8px 0;">' . esc_html($code) . '</code></p>' .
-            '<p><strong>' . esc_html__('Importo', 'fp-discount-gift') . ':</strong> ' . esc_html($amount . ' ' . $currency) . '</p>' .
-            $expiresHtml .
-            '<p>' . esc_html__('Inserisci il codice nel carrello durante il checkout per utilizzare il saldo.', 'fp-discount-gift') . '</p>' .
-            '<p><a href="' . esc_url($checkoutUrl) . '" style="display:inline-block;background:#667eea;color:#fff;padding:10px 20px;text-decoration:none;border-radius:6px;">' .
-            esc_html__('Vai al checkout', 'fp-discount-gift') . '</a></p>' .
-            '<p style="color:#666;font-size:12px;">' . esc_html($siteName) . ' — ' . esc_url($siteUrl) . '</p>' .
-            '</div>';
+            '<table role="presentation" width="100%" cellspacing="0" cellpadding="16" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;margin:20px 0;">' .
+            '<tr><td style="text-align:center;padding:16px;">' .
+            '<p style="margin:0 0 8px;color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:.05em;">' . esc_html__('Codice gift card', 'fp-discount-gift') . '</p>' .
+            '<p style="margin:0;font-size:22px;font-weight:700;font-family:monospace;letter-spacing:.15em;color:#1e293b;">' . esc_html($code) . '</p>' .
+            '</td></tr></table>' .
+            '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:20px 0;">' .
+            '<tr><td style="padding:8px 0;color:#64748b;font-size:14px;">' . esc_html__('Importo', 'fp-discount-gift') . '</td><td style="padding:8px 0;text-align:right;font-weight:600;font-size:16px;">' . esc_html($amount . ' ' . $currency) . '</td></tr>' .
+            $expiresRow .
+            '</table>' .
+            '<p style="margin:24px 0;color:#64748b;font-size:14px;line-height:1.6;">' . esc_html__('Inserisci il codice nel campo coupon durante il checkout per utilizzare il saldo.', 'fp-discount-gift') . '</p>' .
+            '<p style="margin:0;text-align:center;">' .
+            '<a href="' . $ctaUrl . '" style="display:inline-block;background:#6366f1;color:#fff!important;padding:14px 28px;text-decoration:none;border-radius:8px;font-weight:600;font-size:15px;">' . $ctaLabel . '</a>' .
+            '</p></td></tr>' .
+            '<tr><td style="padding:20px 24px;background:#f8fafc;border-top:1px solid #e2e8f0;text-align:center;">' .
+            '<p style="margin:0;color:#94a3b8;font-size:12px;">' . esc_html($siteName) . ' — ' . esc_url($siteUrl) . '</p>' .
+            '</td></tr></table></td></tr></table>' .
+            '</body></html>';
     }
 
     private function sendViaWpMail(string $to, string $subject, string $body): bool
@@ -116,12 +183,18 @@ final class GiftCardEmailSender
     }
 
     /**
-     * Invia via Brevo Transactional API se disponibile.
+     * Invia via Brevo Transactional API.
+     * Se è configurato un templateId, usa il template con params; altrimenti htmlContent.
      */
     private function sendViaBrevo(string $to, string $subject, string $body, array $giftCard): bool
     {
-        $settings = get_option('fp_tracking_settings', []);
-        $apiKey = is_array($settings) ? ($settings['brevo_api_key'] ?? '') : '';
+        $settings = get_option('fp_discountgift_settings', []);
+        $settings = is_array($settings) ? $settings : [];
+        $templateId = (int) ($settings['gift_card_brevo_template_id'] ?? 0);
+        $templateId = (int) apply_filters('fp_discountgift_brevo_template_id', $templateId);
+
+        $tracking = get_option('fp_tracking_settings', []);
+        $apiKey = is_array($tracking) ? ($tracking['brevo_api_key'] ?? '') : '';
         if ($apiKey === '' || ! is_string($apiKey)) {
             return false;
         }
@@ -138,8 +211,14 @@ final class GiftCardEmailSender
                 ['email' => $to],
             ],
             'subject' => $subject,
-            'htmlContent' => $body,
         ];
+
+        if ($templateId > 0) {
+            $payload['templateId'] = $templateId;
+            $payload['params'] = $this->getBrevoTemplateParams($giftCard);
+        } else {
+            $payload['htmlContent'] = $body;
+        }
 
         $response = wp_remote_post(
             self::BREVO_ENDPOINT,

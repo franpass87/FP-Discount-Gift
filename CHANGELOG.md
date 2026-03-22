@@ -1,3 +1,10 @@
+## [1.2.1] - 2026-03-22
+### Changed
+- Template email gift card HTML ristrutturato: layout tabellare, header gradiente, card codice, CTA evidente.
+- Supporto template Brevo: campo "ID template Brevo" in impostazioni; se configurato usa templateId + params.
+- Parametri template Brevo: CODE, AMOUNT, CURRENCY, EXPIRES_AT, SITE_NAME, SITE_URL, CHECKOUT_URL, MESSAGE.
+- Documentazione Brevo: eventi gift_card_*, guida template e parametri.
+
 ## [1.2.0] - 2026-03-22
 ### Added
 - Prodotto gift card WooCommerce: marca prodotti (anche varianti) come gift card tramite checkbox in scheda prodotto.
