@@ -1,3 +1,9 @@
+## [1.2.2] - 2026-03-22
+### Added
+- Prodotto gift card: opzione "Importo scelto dal cliente" — il cliente inserisce l'importo che diventa prezzo e saldo.
+- Importo minimo e massimo configurabili per prodotto (e varianti).
+- Supporto prodotti variabili: campo importo si mostra quando si seleziona una variante con importo personalizzato.
+
 ## [1.2.1] - 2026-03-22
 ### Changed
 - Template email gift card HTML ristrutturato: layout tabellare, header gradiente, card codice, CTA evidente.

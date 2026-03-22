@@ -2,7 +2,7 @@
 Contributors: franpass87
 Requires at least: 6.0
 Requires PHP: 8.0
-Stable tag: 1.2.1
+Stable tag: 1.2.2
 License: Proprietary
 Tags: woocommerce, coupon, discount, gift card, fp
 
@@ -28,6 +28,10 @@ Caratteristiche principali:
 4. Configura regole da menu `FP Discount Gift`.
 
 == Changelog ==
+
+= 1.2.2 =
+* Prodotto gift card: importo scelto dal cliente con min/max configurabili.
+* Supporto prodotti variabili con importo personalizzato per variante.
 
 = 1.2.1 =
 * Template email gift card migliorato (HTML strutturato, layout professionale).

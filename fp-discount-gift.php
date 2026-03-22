@@ -3,7 +3,7 @@
  * Plugin Name: FP Discount Gift
  * Plugin URI: https://github.com/franpass87/FP-Discount-Gift
  * Description: Gestione codici sconto FP con integrazione WooCommerce e sincronizzazione eventi voucher da FP-Experiences.
- * Version: 1.2.1
+ * Version: 1.2.2
  * Requires at least: 6.0
  * Requires PHP: 8.0
  * Author: Francesco Passeri
@@ -19,7 +19,7 @@ declare(strict_types=1);
 
 defined('ABSPATH') || exit;
 
-define('FP_DISCOUNTGIFT_VERSION', '1.2.1');
+define('FP_DISCOUNTGIFT_VERSION', '1.2.2');
 define('FP_DISCOUNTGIFT_FILE', __FILE__);
 define('FP_DISCOUNTGIFT_DIR', plugin_dir_path(__FILE__));
 define('FP_DISCOUNTGIFT_URL', plugin_dir_url(__FILE__));
