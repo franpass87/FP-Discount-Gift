@@ -29,6 +29,9 @@ Caratteristiche principali:
 
 == Changelog ==
 
+= 1.2.5 =
+* Eventi gift_card_issued: user_data.em per identificazione Brevo.
+
 = 1.2.4 =
 * Notice centralizzazione Brevo con link a FP Tracking in Impostazioni.
 

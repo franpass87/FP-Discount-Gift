@@ -43,7 +43,62 @@ final class CheckoutBridge
         add_action('woocommerce_removed_coupon', [$this, 'handleRemovedCoupon'], 10, 1);
         add_action('woocommerce_checkout_order_processed', [$this, 'recordRuleUsage'], 10, 3);
 
+        add_filter('woocommerce_get_shop_coupon_data', [$this, 'provideVirtualCouponData'], 10, 2);
         add_filter('woocommerce_coupon_is_valid', [$this, 'validateCouponCompatibility'], 20, 3);
+    }
+
+    /**
+     * Fornisce dati coupon virtuale per codici regola o gift card FP.
+     * Permette a WooCommerce di accettare codici non presenti nella tabella coupon.
+     *
+     * @param mixed $value Valore passato dal filtro (false di default)
+     * @param mixed $data  Codice coupon (string) passato al costruttore WC_Coupon
+     * @return array<string, mixed>|false Dati per read_manual_coupon o false
+     */
+    public function provideVirtualCouponData(mixed $value, mixed $data): array|false
+    {
+        if ($value !== false || ! is_string($data) || trim($data) === '') {
+            return false;
+        }
+
+        $code = strtoupper(sanitize_text_field($data));
+
+        $repository = $this->getRepository();
+        if ($repository) {
+            $gift_card = $repository->findGiftCardByCode($code);
+            if (is_array($gift_card)) {
+                $balance = (float) ($gift_card['current_balance'] ?? 0);
+                $status = (string) ($gift_card['status'] ?? '');
+                if ($status === 'active' && $balance > 0) {
+                    return [
+                        'discount_type' => 'fixed_cart',
+                        'amount' => $balance,
+                        'individual_use' => false,
+                        'usage_limit' => 0,
+                        'usage_limit_per_user' => 0,
+                    ];
+                }
+            }
+        }
+
+        $cart = WC()->cart;
+        $rule = $cart
+            ? $this->engine->evaluateByCode($code, $cart, $this->resolveCustomerEmail())
+            : $this->getRuleFallback($code);
+        if ($rule instanceof DiscountRule) {
+            return [
+                'discount_type' => $rule->discount_type,
+                'amount' => $rule->amount,
+                'individual_use' => false,
+                'usage_limit' => 0,
+                'usage_limit_per_user' => 0,
+                'minimum_amount' => $rule->minimum_amount ?? '',
+                'maximum_amount' => $rule->maximum_amount ?? '',
+                'date_expires' => $rule->date_expires ?? '',
+            ];
+        }
+
+        return false;
     }
 
     /**
@@ -371,5 +426,32 @@ final class CheckoutBridge
         }
 
         return new \FP\DiscountGift\Infrastructure\DB\DiscountRuleRepository();
+    }
+
+    /**
+     * Fallback: restituisce la regola per codice quando WC()->cart non e' disponibile
+     * (es. Store API / Blocks). Valida solo esistenza e attivita', la validazione completa
+     * avviene poi in WooCommerce is_valid.
+     */
+    private function getRuleFallback(string $code): ?DiscountRule
+    {
+        $repository = $this->getRepository();
+        if ($repository === null) {
+            return null;
+        }
+
+        $rule = $repository->findByCode($code);
+        if (! $rule instanceof DiscountRule || ! $rule->isActive()) {
+            return null;
+        }
+
+        if (is_string($rule->date_expires) && $rule->date_expires !== '') {
+            $expires_ts = strtotime($rule->date_expires);
+            if ($expires_ts !== false && $expires_ts < (int) current_time('timestamp')) {
+                return null;
+            }
+        }
+
+        return $rule;
     }
 }

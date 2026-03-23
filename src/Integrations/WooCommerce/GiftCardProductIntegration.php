@@ -60,6 +60,7 @@ final class GiftCardProductIntegration
         add_filter('woocommerce_add_to_cart_validation', [$this, 'validateAddToCart'], 10, 5);
         add_filter('woocommerce_add_cart_item_data', [$this, 'addCartItemData'], 10, 4);
         add_filter('woocommerce_add_cart_item', [$this, 'setCartItemPrice'], 10, 3);
+        add_action('woocommerce_before_calculate_totals', [$this, 'applyCartItemPrice'], 15);
         add_filter('woocommerce_get_item_data', [$this, 'displayCartItemData'], 10, 2);
 
         add_filter('woocommerce_checkout_fields', [$this, 'addCheckoutFields']);
@@ -241,14 +242,14 @@ jQuery(function($) {
      */
     public function saveProductMeta(int $post_id): void
     {
-        $value = isset($_POST[self::PRODUCT_META]) && $_POST[self::PRODUCT_META] === 'yes' ? 'yes' : 'no';
+        $value = isset($_POST[self::PRODUCT_META]) && sanitize_text_field(wp_unslash((string) $_POST[self::PRODUCT_META])) === 'yes' ? 'yes' : 'no';
         update_post_meta($post_id, self::PRODUCT_META, $value);
 
-        $custom = isset($_POST[self::PRODUCT_META_CUSTOM_AMOUNT]) && $_POST[self::PRODUCT_META_CUSTOM_AMOUNT] === 'yes' ? 'yes' : 'no';
+        $custom = isset($_POST[self::PRODUCT_META_CUSTOM_AMOUNT]) && sanitize_text_field(wp_unslash((string) $_POST[self::PRODUCT_META_CUSTOM_AMOUNT])) === 'yes' ? 'yes' : 'no';
         update_post_meta($post_id, self::PRODUCT_META_CUSTOM_AMOUNT, $custom);
 
-        $min = isset($_POST[self::PRODUCT_META_MIN_AMOUNT]) ? (float) $_POST[self::PRODUCT_META_MIN_AMOUNT] : 0;
-        $max = isset($_POST[self::PRODUCT_META_MAX_AMOUNT]) ? (float) $_POST[self::PRODUCT_META_MAX_AMOUNT] : 0;
+        $min = isset($_POST[self::PRODUCT_META_MIN_AMOUNT]) ? (float) wp_unslash($_POST[self::PRODUCT_META_MIN_AMOUNT]) : 0;
+        $max = isset($_POST[self::PRODUCT_META_MAX_AMOUNT]) ? (float) wp_unslash($_POST[self::PRODUCT_META_MAX_AMOUNT]) : 0;
         update_post_meta($post_id, self::PRODUCT_META_MIN_AMOUNT, $min > 0 ? $min : '');
         update_post_meta($post_id, self::PRODUCT_META_MAX_AMOUNT, $max > 0 ? $max : '');
     }
@@ -288,8 +289,8 @@ jQuery(function($) {
     {
         $var_key = 'variable_fp_discountgift_gift';
         $var_custom = 'variable_fp_discountgift_gift_custom';
-        $posted = isset($_POST[$var_key]) && is_array($_POST[$var_key]) ? wp_unslash($_POST[$var_key]) : [];
-        $posted_custom = isset($_POST[$var_custom]) && is_array($_POST[$var_custom]) ? wp_unslash($_POST[$var_custom]) : [];
+        $posted = isset($_POST[$var_key]) && is_array($_POST[$var_key]) ? array_map('sanitize_text_field', wp_unslash($_POST[$var_key])) : [];
+        $posted_custom = isset($_POST[$var_custom]) && is_array($_POST[$var_custom]) ? array_map('sanitize_text_field', wp_unslash($_POST[$var_custom])) : [];
         $val = $posted[$loop] ?? '';
         $val_custom = $posted_custom[$loop] ?? '';
         update_post_meta($variation_id, self::PRODUCT_META, ($val === 'yes' || $val === '1') ? 'yes' : 'no');
@@ -355,7 +356,7 @@ jQuery(function($) {
             return $passed;
         }
 
-        $amount = isset($_POST[self::CART_ITEM_AMOUNT]) ? (float) $_POST[self::CART_ITEM_AMOUNT] : 0;
+        $amount = isset($_POST[self::CART_ITEM_AMOUNT]) ? (float) wp_unslash($_POST[self::CART_ITEM_AMOUNT]) : 0;
         $min = $this->getMinAmount($product);
         $max = $this->getMaxAmount($product);
 
@@ -391,7 +392,7 @@ jQuery(function($) {
             return $cart_item_data;
         }
 
-        $amount = isset($_POST[self::CART_ITEM_AMOUNT]) ? (float) $_POST[self::CART_ITEM_AMOUNT] : 0;
+        $amount = isset($_POST[self::CART_ITEM_AMOUNT]) ? (float) wp_unslash($_POST[self::CART_ITEM_AMOUNT]) : 0;
         if ($amount > 0) {
             $cart_item_data[self::CART_ITEM_AMOUNT] = $amount;
         }
@@ -423,6 +424,32 @@ jQuery(function($) {
         $product->set_sale_price('');
 
         return $cart_item;
+    }
+
+    /**
+     * Applica prezzo custom su ricalcolo totali carrello (sessione).
+     */
+    public function applyCartItemPrice(\WC_Cart $cart): void
+    {
+        if (is_admin() && ! wp_doing_ajax()) {
+            return;
+        }
+
+        foreach ($cart->get_cart() as $cart_item) {
+            $amount = (float) ($cart_item[self::CART_ITEM_AMOUNT] ?? 0);
+            if ($amount <= 0) {
+                continue;
+            }
+
+            $product = $cart_item['data'] ?? null;
+            if (! $product instanceof WC_Product) {
+                continue;
+            }
+
+            $product->set_price($amount);
+            $product->set_regular_price($amount);
+            $product->set_sale_price('');
+        }
     }
 
     /**
@@ -602,6 +629,8 @@ jQuery(function($) {
                     continue;
                 }
 
+                $processed_any = true;
+
                 $created = $this->repository->getGiftCardById($gift_card_id);
                 if (! is_array($created)) {
                     continue;
@@ -615,6 +644,9 @@ jQuery(function($) {
                     'value' => $amount,
                     'currency' => $payload['currency'],
                     'email' => $recipient_email,
+                    'user_data' => [
+                        'em' => $recipient_email,
+                    ],
                     'order_id' => $order_id,
                     'source' => 'woocommerce_product',
                 ]);

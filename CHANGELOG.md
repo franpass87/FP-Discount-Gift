@@ -1,3 +1,7 @@
+## [1.2.5] - 2026-03-23
+### Changed
+- Eventi gift_card_issued: aggiunto user_data.em per identificazione Brevo (consistenza con altri eventi).
+
 ## [1.2.4] - 2026-03-23
 ### Changed
 - Notice centralizzazione Brevo con link a FP Tracking in Impostazioni (quando FP-Tracking attivo).
