@@ -2,7 +2,7 @@
 Contributors: franpass87
 Requires at least: 6.0
 Requires PHP: 8.0
-Stable tag: 1.0.3
+Stable tag: 1.0.4
 License: Proprietary
 Tags: woocommerce, coupon, discount, gift card, fp
 
@@ -28,6 +28,9 @@ Caratteristiche principali:
 4. Configura regole da menu `FP Discount Gift`.
 
 == Changelog ==
+
+= 1.0.4 =
+* Campo scadenza (giorni dalla emissione) sui prodotti WC gift card: valida 1 anno, 6 mesi, ecc.
 
 = 1.0.3 =
 * Corretto controllo discount_type in DiscountEngine: le regole percentuali e altri tipi venivano scartate.

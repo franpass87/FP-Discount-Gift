@@ -1,3 +1,7 @@
+## [1.0.4] - 2026-03-22
+### Added
+- Campo "Scadenza (giorni dalla emissione)" sui prodotti WooCommerce gift card: consente di impostare la validità (es. 365 = 1 anno) per le gift card emesse all'acquisto. Supportato su prodotti semplici e variabili.
+
 ## [1.0.3] - 2026-03-22
 ### Fixed
 - Corretto controllo `discount_type` in `DiscountEngine::isRuleApplicable()`: `wc_get_coupon_types()` restituisce array associativo, usare `array_keys()` per validare i tipi. Le regole con `percent` o altri tipi venivano sempre scartate.
