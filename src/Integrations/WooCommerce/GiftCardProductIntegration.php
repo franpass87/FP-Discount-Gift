@@ -33,7 +33,6 @@ final class GiftCardProductIntegration
     public const PRODUCT_META_CUSTOM_AMOUNT = '_fp_discountgift_gift_custom_amount';
     public const PRODUCT_META_MIN_AMOUNT = '_fp_discountgift_gift_min_amount';
     public const PRODUCT_META_MAX_AMOUNT = '_fp_discountgift_gift_max_amount';
-    public const PRODUCT_META_EXPIRES_DAYS = '_fp_discountgift_gift_expires_days';
     public const CART_ITEM_AMOUNT = 'fp_discountgift_amount';
     public const ORDER_META_RECIPIENT_EMAIL = '_fp_discountgift_gift_recipient_email';
     public const ORDER_META_RECIPIENT_NAME = '_fp_discountgift_gift_recipient_name';
@@ -123,25 +122,6 @@ final class GiftCardProductIntegration
     }
 
     /**
-     * Restituisce giorni di validità dalla data di emissione (0 = nessuna scadenza).
-     */
-    public function getExpiresDays(WC_Product $product): int
-    {
-        $id = $product->get_id();
-        $v = get_post_meta($id, self::PRODUCT_META_EXPIRES_DAYS, true);
-        if ($v !== '' && $v !== null) {
-            $days = (int) $v;
-            return $days > 0 ? $days : 0;
-        }
-        $parent = $product->get_parent_id();
-        if ($parent > 0) {
-            $v = get_post_meta($parent, self::PRODUCT_META_EXPIRES_DAYS, true);
-            return $v !== '' ? max(0, (int) $v) : 0;
-        }
-        return 0;
-    }
-
-    /**
      * Salva importo come meta ordine per display.
      */
     public function saveOrderItemAmount(\WC_Order_Item_Product $item, string $cart_item_key, array $values, \WC_Order $order): void
@@ -221,7 +201,6 @@ jQuery(function($) {
         $custom_amount = get_post_meta($post->ID, self::PRODUCT_META_CUSTOM_AMOUNT, true) === 'yes';
         $min = get_post_meta($post->ID, self::PRODUCT_META_MIN_AMOUNT, true) ?: '';
         $max = get_post_meta($post->ID, self::PRODUCT_META_MAX_AMOUNT, true) ?: '';
-        $expires_days = get_post_meta($post->ID, self::PRODUCT_META_EXPIRES_DAYS, true) ?: '';
 
         woocommerce_wp_checkbox([
             'id' => self::PRODUCT_META,
@@ -255,15 +234,6 @@ jQuery(function($) {
             'custom_attributes' => ['step' => '0.01', 'min' => '0'],
             'placeholder' => __('Nessun massimo', 'fp-discount-gift'),
         ]);
-        woocommerce_wp_text_input([
-            'id' => self::PRODUCT_META_EXPIRES_DAYS,
-            'value' => $expires_days,
-            'label' => __('Scadenza (giorni dalla emissione)', 'fp-discount-gift'),
-            'type' => 'number',
-            'custom_attributes' => ['step' => '1', 'min' => '0'],
-            'placeholder' => __('Nessuna scadenza', 'fp-discount-gift'),
-            'description' => __('Es. 365 = valida 1 anno dall\'acquisto. Lascia vuoto per nessuna scadenza.', 'fp-discount-gift'),
-        ]);
         echo '</div>';
     }
 
@@ -280,10 +250,8 @@ jQuery(function($) {
 
         $min = isset($_POST[self::PRODUCT_META_MIN_AMOUNT]) ? (float) wp_unslash($_POST[self::PRODUCT_META_MIN_AMOUNT]) : 0;
         $max = isset($_POST[self::PRODUCT_META_MAX_AMOUNT]) ? (float) wp_unslash($_POST[self::PRODUCT_META_MAX_AMOUNT]) : 0;
-        $expires_days = isset($_POST[self::PRODUCT_META_EXPIRES_DAYS]) ? absint(wp_unslash($_POST[self::PRODUCT_META_EXPIRES_DAYS])) : 0;
         update_post_meta($post_id, self::PRODUCT_META_MIN_AMOUNT, $min > 0 ? $min : '');
         update_post_meta($post_id, self::PRODUCT_META_MAX_AMOUNT, $max > 0 ? $max : '');
-        update_post_meta($post_id, self::PRODUCT_META_EXPIRES_DAYS, $expires_days > 0 ? $expires_days : '');
     }
 
     /**
@@ -293,10 +261,8 @@ jQuery(function($) {
     {
         $is_gift = get_post_meta($variation->ID, self::PRODUCT_META, true) === 'yes';
         $custom_amount = get_post_meta($variation->ID, self::PRODUCT_META_CUSTOM_AMOUNT, true) === 'yes';
-        $expires_days = get_post_meta($variation->ID, self::PRODUCT_META_EXPIRES_DAYS, true) ?: '';
         $var_key = 'variable_fp_discountgift_gift';
         $var_custom = 'variable_fp_discountgift_gift_custom';
-        $var_expires = 'variable_fp_discountgift_gift_expires';
 
         echo '<div class="form-row form-row-full">';
         woocommerce_wp_checkbox([
@@ -313,14 +279,6 @@ jQuery(function($) {
             'label' => __('Importo scelto dal cliente', 'fp-discount-gift'),
             'cbvalue' => 'yes',
         ]);
-        woocommerce_wp_text_input([
-            'id' => $var_expires . $loop,
-            'name' => $var_expires . '[' . $loop . ']',
-            'value' => $expires_days,
-            'label' => __('Scadenza (giorni)', 'fp-discount-gift'),
-            'type' => 'number',
-            'custom_attributes' => ['step' => '1', 'min' => '0', 'placeholder' => __('Nessuna', 'fp-discount-gift')],
-        ]);
         echo '</div>';
     }
 
@@ -331,16 +289,12 @@ jQuery(function($) {
     {
         $var_key = 'variable_fp_discountgift_gift';
         $var_custom = 'variable_fp_discountgift_gift_custom';
-        $var_expires = 'variable_fp_discountgift_gift_expires';
         $posted = isset($_POST[$var_key]) && is_array($_POST[$var_key]) ? array_map('sanitize_text_field', wp_unslash($_POST[$var_key])) : [];
         $posted_custom = isset($_POST[$var_custom]) && is_array($_POST[$var_custom]) ? array_map('sanitize_text_field', wp_unslash($_POST[$var_custom])) : [];
-        $posted_expires = isset($_POST[$var_expires]) && is_array($_POST[$var_expires]) ? wp_unslash($_POST[$var_expires]) : [];
         $val = $posted[$loop] ?? '';
         $val_custom = $posted_custom[$loop] ?? '';
-        $val_expires = isset($posted_expires[$loop]) ? absint($posted_expires[$loop]) : 0;
         update_post_meta($variation_id, self::PRODUCT_META, ($val === 'yes' || $val === '1') ? 'yes' : 'no');
         update_post_meta($variation_id, self::PRODUCT_META_CUSTOM_AMOUNT, ($val_custom === 'yes' || $val_custom === '1') ? 'yes' : 'no');
-        update_post_meta($variation_id, self::PRODUCT_META_EXPIRES_DAYS, $val_expires > 0 ? $val_expires : '');
     }
 
     /**
@@ -651,13 +605,6 @@ jQuery(function($) {
 
             for ($i = 0; $i < $qty; $i++) {
                 $amount = $unit_amount;
-                $expires_days = $this->getExpiresDays($product);
-                $expires_at = '';
-                if ($expires_days > 0) {
-                    $ts = strtotime("+{$expires_days} days", (int) current_time('timestamp'));
-                    $expires_at = wp_date('Y-m-d H:i:s', $ts);
-                }
-
                 $payload = [
                     'amount' => $amount,
                     'currency' => $currency !== '' ? $currency : 'EUR',
@@ -676,9 +623,6 @@ jQuery(function($) {
                         $qty
                     ),
                 ];
-                if ($expires_at !== '') {
-                    $payload['expires_at'] = $expires_at;
-                }
 
                 $gift_card_id = $this->repository->createGiftCard($payload);
                 if ($gift_card_id <= 0) {
@@ -700,6 +644,9 @@ jQuery(function($) {
                     'value' => $amount,
                     'currency' => $payload['currency'],
                     'email' => $recipient_email,
+                    'user_data' => [
+                        'em' => $recipient_email,
+                    ],
                     'order_id' => $order_id,
                     'source' => 'woocommerce_product',
                 ]);

@@ -92,7 +92,7 @@ final class SettingsPage
             self::MENU_SLUG,
             [$this, 'renderPage'],
             'dashicons-tickets-alt',
-            58
+            '56.1'
         );
     }
 

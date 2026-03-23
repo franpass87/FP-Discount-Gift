@@ -1,3 +1,6 @@
+## [1.0.5] - 2026-03-23
+### Changed
+- Menu position 56.1 per ordine alfabetico FP.
 ## [1.0.4] - 2026-03-22
 ### Added
 - Campo "Scadenza (giorni dalla emissione)" sui prodotti WooCommerce gift card: consente di impostare la validità (es. 365 = 1 anno) per le gift card emesse all'acquisto. Supportato su prodotti semplici e variabili.
