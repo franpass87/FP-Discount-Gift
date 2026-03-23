@@ -100,7 +100,8 @@ final class DiscountEngine
             return false;
         }
 
-        if (! in_array($rule->discount_type, wc_get_coupon_types(), true)) {
+        $valid_types = array_keys(wc_get_coupon_types());
+        if (! in_array($rule->discount_type, $valid_types, true)) {
             return false;
         }
 

@@ -2,7 +2,7 @@
 
 Plugin WordPress per la gestione di codici sconto FP con integrazione WooCommerce in modalita shadow coupon e sincronizzazione eventi voucher da FP-Experiences.
 
-![Version](https://img.shields.io/badge/version-1.2.5-blue)
+![Version](https://img.shields.io/badge/version-1.0.3-blue)
 
 ## Funzionalita MVP (Fase 1)
 
@@ -12,7 +12,6 @@ Plugin WordPress per la gestione di codici sconto FP con integrazione WooCommerc
 - Pagina admin dedicata per impostazioni e CRUD regole (crea, modifica, elimina, bulk enable/disable/delete).
 - Bridge eventi voucher da FP-Experiences (`fp_exp_gift_purchased`, `fp_exp_gift_voucher_redeemed`).
 - Gift card native con saldo residuo e movimenti (`issued`, `redeemed`).
-- Prodotto gift card WooCommerce: emissione automatica all'acquisto; opzione "Importo scelto dal cliente" con min/max.
 
 ## Integrazione WooCommerce
 
@@ -74,10 +73,16 @@ FP-Discount-Gift/
 
 ## Suggerimenti per sviluppi futuri
 
-- **Template messaggio gift card**: personalizzazione avanzata email (Brevo/SMTP)
+- **Esporta/importa regole CSV**: backup e migrazione regole tra ambienti
+- **Duplica regola**: crea una copia con codice modificato per varianti rapide
+- **Filtro e ricerca regole**: campo ricerca per codice/titolo nelle tabelle
+- **Statistiche uso**: conteggio utilizzi per regola con grafico
+- **Invio gift card via email**: notifica al destinatario con codice e istruzioni
+- **Template messaggio gift card**: personalizzazione email (Brevo/SMTP)
+- **Preview codice sconto**: anteprima totale scontato su carrello di test
 - **Regole per categoria prodotto**: restrizioni per taxonomy oltre a product IDs
 - **Condizioni data/ora**: sconti attivi solo in fasce orarie (es. happy hour)
-- **Checkout Blocks**: supporto campi gift card nel checkout a blocchi WooCommerce
+- **Cuponi usa-e-getta**: codice monouso con generazione batch
 
 ## Autore
 

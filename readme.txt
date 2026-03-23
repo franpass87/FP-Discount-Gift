@@ -2,7 +2,7 @@
 Contributors: franpass87
 Requires at least: 6.0
 Requires PHP: 8.0
-Stable tag: 1.2.4
+Stable tag: 1.0.3
 License: Proprietary
 Tags: woocommerce, coupon, discount, gift card, fp
 
@@ -29,36 +29,8 @@ Caratteristiche principali:
 
 == Changelog ==
 
-= 1.2.5 =
-* Eventi gift_card_issued: user_data.em per identificazione Brevo.
-
-= 1.2.4 =
-* Notice centralizzazione Brevo con link a FP Tracking in Impostazioni.
-
-= 1.2.3 =
-* Brevo centralizzato: API key e stato letti da FP-Tracking (fp_tracking_get_brevo_settings).
-
-= 1.2.2 =
-* Prodotto gift card: importo scelto dal cliente con min/max configurabili.
-* Supporto prodotti variabili con importo personalizzato per variante.
-
-= 1.2.1 =
-* Template email gift card migliorato (HTML strutturato, layout professionale).
-* Supporto template Brevo con parametri personalizzabili.
-* Documentazione eventi Brevo gift_card_*.
-
-= 1.2.0 =
-* Prodotto gift card WooCommerce: marca prodotti come gift card, emissione automatica all'acquisto con invio email al destinatario.
-* Campi checkout per email e nome destinatario quando il carrello contiene gift card.
-
-= 1.1.0 =
-* Invio gift card via email (wp_mail e Brevo transazionale).
-* Duplica regola sconto.
-* Statistiche uso regole (usi, importo totale, ultimo utilizzo).
-* Esporta/importa regole CSV.
-* Filtro e ricerca regole per codice/titolo.
-* Preview sconto in modifica regola (calcolo live).
-* Cuponi usa-e-getta batch (genera N codici con usage_limit=1).
+= 1.0.3 =
+* Corretto controllo discount_type in DiscountEngine: le regole percentuali e altri tipi venivano scartate.
 
 = 1.0.2 =
 * Interfaccia admin rinnovata con design system FP (card, toggle, badge, tabelle).
