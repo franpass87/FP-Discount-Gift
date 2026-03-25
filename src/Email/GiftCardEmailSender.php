@@ -208,6 +208,7 @@ final class GiftCardEmailSender
     /**
      * Invia via Brevo Transactional API.
      * Se è configurato un templateId, usa il template con params; altrimenti htmlContent.
+     * Con FP Marketing Tracking Layer attivo il payload riceve i tag sito tramite {@see fp_tracking_brevo_merge_transactional_tags()}.
      */
     private function sendViaBrevo(string $to, string $subject, string $body, array $giftCard): bool
     {
@@ -240,6 +241,10 @@ final class GiftCardEmailSender
             $payload['params'] = $this->getBrevoTemplateParams($giftCard);
         } else {
             $payload['htmlContent'] = $body;
+        }
+
+        if (function_exists('fp_tracking_brevo_merge_transactional_tags')) {
+            $payload = fp_tracking_brevo_merge_transactional_tags($payload);
         }
 
         $response = wp_remote_post(

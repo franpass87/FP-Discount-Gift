@@ -1,3 +1,9 @@
+## [1.0.7] - 2026-03-24
+
+### Changed
+
+- Email gift card via Brevo: payload `POST /v3/smtp/email` arricchito con `fp_tracking_brevo_merge_transactional_tags()` quando FP Marketing Tracking Layer è attivo (tag sito per log/sync transactional).
+
 ## [1.0.6] - 2026-03-24
 ### Changed
 - Email gift card: corpo costruito come **frammento HTML** (card); con **FP Mail SMTP** attivo viene applicato `fp_fpmail_brand_html()` prima di `wp_mail` e di Brevo `htmlContent`. Senza FP Mail, mantenuto wrapper locale (sfondo + card). Il filtro `fp_discountgift_gift_card_email_body` riceve il frammento card; se restituisce un documento completo (`<!DOCTYPE` / `<html>`), non viene ri-avvolto.

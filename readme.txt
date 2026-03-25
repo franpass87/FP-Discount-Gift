@@ -29,6 +29,9 @@ Caratteristiche principali:
 
 == Changelog ==
 
+= 1.0.7 =
+* Brevo gift card: merge tag sito via FP Tracking (`fp_tracking_brevo_merge_transactional_tags`) prima dell'API transactional.
+
 = 1.0.6 =
 * Email gift card: integrazione layout FP Mail SMTP (`fp_fpmail_brand_html`); frammento card + fallback se plugin assente.
 
