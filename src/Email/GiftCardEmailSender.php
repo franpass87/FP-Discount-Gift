@@ -8,10 +8,14 @@ use function apply_filters;
 use function get_bloginfo;
 use function home_url;
 use function is_array;
+use function is_wp_error;
+use function preg_match;
 use function sanitize_email;
 use function sprintf;
 use function wp_mail;
 use function wp_remote_post;
+use function wp_remote_retrieve_response_code;
+use function wp_json_encode;
 
 /**
  * Invia email gift card al destinatario.
@@ -58,7 +62,7 @@ final class GiftCardEmailSender
             )
         );
 
-        $body = $this->buildBody($giftCard);
+        $body = $this->buildGiftCardCardHtml($giftCard);
         $body = apply_filters('fp_discountgift_gift_card_email_body', $body, $giftCard);
 
         $custom_sender = apply_filters('fp_discountgift_send_gift_card_email', null, $to, $subject, $body, $giftCard);
@@ -68,6 +72,8 @@ final class GiftCardEmailSender
         if ($custom_sender === false) {
             return false;
         }
+
+        $body = $this->finalizeGiftCardHtmlForTransport($body);
 
         $use_brevo = $this->shouldUseBrevo();
         if ($use_brevo) {
@@ -115,11 +121,11 @@ final class GiftCardEmailSender
     }
 
     /**
-     * Costruisce corpo email HTML standard ben strutturato (compatibile client email).
+     * Blocco HTML della gift card (senza documento esterno), da avvolgere con FP Mail SMTP o fallback locale.
      *
      * @param array<string, mixed> $giftCard
      */
-    private function buildBody(array $giftCard): string
+    private function buildGiftCardCardHtml(array $giftCard): string
     {
         $code = (string) ($giftCard['code'] ?? '');
         $amount = (string) ($giftCard['initial_balance'] ?? $giftCard['current_balance'] ?? '0');
@@ -140,10 +146,7 @@ final class GiftCardEmailSender
         $ctaLabel = esc_html__('Vai al checkout', 'fp-discount-gift');
         $ctaUrl = esc_url($checkoutUrl);
 
-        return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Oxygen-Sans,Ubuntu,sans-serif;">' .
-            '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f1f5f9;padding:24px 16px;">' .
-            '<tr><td align="center">' .
-            '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:520px;background:#fff;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,.05);overflow:hidden;">' .
+        return '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:520px;background:#fff;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,.05);overflow:hidden;">' .
             '<tr><td style="padding:32px 24px;background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%);text-align:center;">' .
             '<h1 style="margin:0;color:#fff;font-size:24px;font-weight:600;">' . esc_html__('Hai ricevuto una gift card!', 'fp-discount-gift') . '</h1>' .
             '<p style="margin:8px 0 0;color:rgba(255,255,255,.9);font-size:14px;">' . esc_html($siteName) . '</p>' .
@@ -169,8 +172,28 @@ final class GiftCardEmailSender
             '</p></td></tr>' .
             '<tr><td style="padding:20px 24px;background:#f8fafc;border-top:1px solid #e2e8f0;text-align:center;">' .
             '<p style="margin:0;color:#94a3b8;font-size:12px;">' . esc_html($siteName) . ' — ' . esc_url($siteUrl) . '</p>' .
-            '</td></tr></table></td></tr></table>' .
-            '</body></html>';
+            '</td></tr></table>';
+    }
+
+    /**
+     * Avvolge il frammento con FP Mail SMTP; se il filtro ha restituito un documento HTML completo, non lo ri-avvolge.
+     * Senza FP Mail, mantiene il layout precedente (sfondo grigio + card centrata).
+     */
+    private function finalizeGiftCardHtmlForTransport(string $html): string
+    {
+        if (preg_match('/<\s*!DOCTYPE/i', $html) === 1 || preg_match('/<\s*html[\s>]/i', $html) === 1) {
+            return $html;
+        }
+
+        if (function_exists('fp_fpmail_brand_html')) {
+            return fp_fpmail_brand_html($html);
+        }
+
+        return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Oxygen-Sans,Ubuntu,sans-serif;">' .
+            '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f1f5f9;padding:24px 16px;">' .
+            '<tr><td align="center">' .
+            $html .
+            '</td></tr></table></body></html>';
     }
 
     private function sendViaWpMail(string $to, string $subject, string $body): bool

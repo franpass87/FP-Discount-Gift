@@ -2,7 +2,7 @@
 Contributors: franpass87
 Requires at least: 6.0
 Requires PHP: 8.0
-Stable tag: 1.0.5
+Stable tag: 1.0.6
 License: Proprietary
 Tags: woocommerce, coupon, discount, gift card, fp
 
@@ -29,7 +29,8 @@ Caratteristiche principali:
 
 == Changelog ==
 
-
+= 1.0.6 =
+* Email gift card: integrazione layout FP Mail SMTP (`fp_fpmail_brand_html`); frammento card + fallback se plugin assente.
 
 = 1.0.5 =
 * Menu position 56.1 per ordine alfabetico FP.

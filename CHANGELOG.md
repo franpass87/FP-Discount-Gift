@@ -1,3 +1,7 @@
+## [1.0.6] - 2026-03-24
+### Changed
+- Email gift card: corpo costruito come **frammento HTML** (card); con **FP Mail SMTP** attivo viene applicato `fp_fpmail_brand_html()` prima di `wp_mail` e di Brevo `htmlContent`. Senza FP Mail, mantenuto wrapper locale (sfondo + card). Il filtro `fp_discountgift_gift_card_email_body` riceve il frammento card; se restituisce un documento completo (`<!DOCTYPE` / `<html>`), non viene ri-avvolto.
+
 ## [1.0.5] - 2026-03-23
 ### Changed
 - Menu position 56.1 per ordine alfabetico FP.

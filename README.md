@@ -2,7 +2,7 @@
 
 Plugin WordPress per la gestione di codici sconto FP con integrazione WooCommerce in modalita shadow coupon e sincronizzazione eventi voucher da FP-Experiences.
 
-![Version](https://img.shields.io/badge/version-1.0.4-blue)
+![Version](https://img.shields.io/badge/version-1.0.6-blue)
 
 ## Funzionalita MVP (Fase 1)
 
@@ -12,6 +12,7 @@ Plugin WordPress per la gestione di codici sconto FP con integrazione WooCommerc
 - Pagina admin dedicata per impostazioni e CRUD regole (crea, modifica, elimina, bulk enable/disable/delete).
 - Bridge eventi voucher da FP-Experiences (`fp_exp_gift_purchased`, `fp_exp_gift_voucher_redeemed`).
 - Gift card native con saldo residuo e movimenti (`issued`, `redeemed`).
+- Email gift card (`wp_mail` / Brevo `htmlContent`): con **FP Mail SMTP** attivo il corpo passa da `fp_fpmail_brand_html()` (card come frammento; filtri possono ancora restituire HTML completo).
 
 ## Integrazione WooCommerce
 
