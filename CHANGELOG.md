@@ -1,3 +1,9 @@
+## [1.0.8] - 2026-03-25
+
+### Fixed
+
+- **GiftCardProductIntegration.php**: rimosso codice duplicato/frammentato dopo la chiusura della classe (parse error `Unmatched '}'` riga 709) che impediva il caricamento di WordPress con il plugin attivo.
+
 ## [1.0.7] - 2026-03-24
 
 ### Changed
