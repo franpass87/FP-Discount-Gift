@@ -1,3 +1,9 @@
+## [1.0.9] - 2026-03-25
+
+### Fixed
+
+- **GiftCardProductIntegration.php**: eliminato il blocco duplicato e le righe orfane dopo la `}` di chiusura della classe (file fino a 734 righe) che causava `PHP Parse error: Unmatched '}'` e HTTP 500 su tutto il sito.
+
 ## [1.0.8] - 2026-03-25
 
 ### Fixed

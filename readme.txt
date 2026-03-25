@@ -2,7 +2,7 @@
 Contributors: franpass87
 Requires at least: 6.0
 Requires PHP: 8.0
-Stable tag: 1.0.6
+Stable tag: 1.0.9
 License: Proprietary
 Tags: woocommerce, coupon, discount, gift card, fp
 
@@ -28,6 +28,9 @@ Caratteristiche principali:
 4. Configura regole da menu `FP Discount Gift`.
 
 == Changelog ==
+
+= 1.0.9 =
+* Fix critico: `GiftCardProductIntegration.php` — rimosso duplicato/orfano dopo la chiusura classe (parse error, sito in HTTP 500).
 
 = 1.0.7 =
 * Brevo gift card: merge tag sito via FP Tracking (`fp_tracking_brevo_merge_transactional_tags`) prima dell'API transactional.
