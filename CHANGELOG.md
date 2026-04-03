@@ -1,3 +1,9 @@
+## [1.0.10] - 2026-04-03
+
+### Fixed
+
+- **GiftCardProductIntegration.php**: rimosso di nuovo il frammento duplicato dopo la chiusura della classe (parse error `Unmatched '}'` alla riga ~709) che causava **HTTP 500** su WordPress con il plugin attivo.
+
 ## [1.0.9] - 2026-03-25
 
 ### Fixed
