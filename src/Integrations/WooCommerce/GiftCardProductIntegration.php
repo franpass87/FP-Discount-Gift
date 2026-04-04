@@ -704,4 +704,4 @@ jQuery(function($) {
 
         return false;
     }
-}
+} // End GiftCardProductIntegration — do not append duplicate methods below (merge/copy-paste).

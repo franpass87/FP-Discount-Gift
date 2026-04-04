@@ -2,7 +2,7 @@
 
 Plugin WordPress per la gestione di codici sconto FP con integrazione WooCommerce in modalita shadow coupon e sincronizzazione eventi voucher da FP-Experiences.
 
-![Version](https://img.shields.io/badge/version-1.0.10-blue)
+![Version](https://img.shields.io/badge/version-1.0.11-blue)
 
 ## Funzionalita MVP (Fase 1)
 
@@ -71,6 +71,10 @@ FP-Discount-Gift/
 - WordPress 6.0+
 - PHP 8.0+
 - WooCommerce (solo per funzioni checkout/sconto)
+
+## Verifica sintassi PHP
+
+Prima di un commit o un merge, dalla root del plugin: `composer lint:syntax` (oppure `php tools/php-syntax-check.php`). Su GitHub, il workflow **PHP syntax** esegue lo stesso controllo su push e pull request.
 
 ## Suggerimenti per sviluppi futuri
 

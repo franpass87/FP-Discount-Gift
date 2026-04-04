@@ -1,3 +1,13 @@
+## [1.0.11] - 2026-04-04
+
+### Fixed
+
+- **GiftCardProductIntegration.php**: rimosso nuovamente il frammento duplicato dopo la chiusura della classe (parse error `Unmatched '}'` / errore critico su tutto il sito). Chiusura classe annotata per ridurre rischio copy-paste in merge.
+
+### Added
+
+- **Qualità**: `tools/php-syntax-check.php`, script Composer `lint:syntax` e workflow GitHub Actions `php-syntax.yml` (`php -l` su tutti i `.php` esclusi `vendor` / `.git` / `node_modules` su push e PR).
+
 ## [1.0.10] - 2026-04-03
 
 ### Fixed

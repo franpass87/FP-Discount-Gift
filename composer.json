@@ -12,7 +12,8 @@
         }
     },
     "scripts": {
-        "test:smoke": "php tests/DiscountEngineSmokeTest.php"
+        "test:smoke": "php tests/DiscountEngineSmokeTest.php",
+        "lint:syntax": "php tools/php-syntax-check.php"
     },
     "config": {
         "optimize-autoloader": true,
